@@ -16,3 +16,6 @@ npm-debug.log*
 
 # Cloudflare / Wrangler local cache (per-machine; not for git)
 .wrangler/
+
+# Scratch / temp
+*.tmp
