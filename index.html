@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>DiskDetox — Free up space on your Windows PC (100% local)</title>
+<style>
+  :root{
+    --bg:#0f1419; --panel:#1a2129; --panel2:#222c36; --line:#2c3742;
+    --txt:#e6edf3; --muted:#9aa7b2; --accent:#4ea1ff; --accent2:#7c5cff;
+    --green:#3fb950; --amber:#d29922; --red:#f85149; --chip:#2a3640;
+    --shadow:0 6px 22px rgba(0,0,0,.35);
+    --radius:14px;
+  }
+  @media (prefers-color-scheme: light){
+    :root{
+      --bg:#f4f6f9; --panel:#ffffff; --panel2:#f0f3f7; --line:#e2e8f0;
+      --txt:#1b2430; --muted:#5b6876; --accent:#1f6feb; --accent2:#6f49e6;
+      --green:#1a7f37; --amber:#9a6700; --red:#cf222e; --chip:#eef2f6;
+      --shadow:0 6px 22px rgba(20,40,70,.08);
+    }
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.5; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px; margin:0 auto; padding:24px 18px 80px}
+  h1{font-size:26px; margin:0 0 4px}
+  h2{font-size:19px; margin:0 0 14px}
+  h3{font-size:15px; margin:0 0 8px}
+  p{margin:0 0 10px}
+  a{color:var(--accent)}
+  .sub{color:var(--muted); font-size:14px; margin:0 0 18px}
+  .panel{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+         padding:20px; margin:0 0 18px; box-shadow:var(--shadow)}
+  .privacy{display:flex; gap:12px; align-items:flex-start; background:var(--panel2);
+           border:1px solid var(--line); border-left:4px solid var(--green);
+           border-radius:10px; padding:14px 16px; margin:0 0 18px; font-size:13.5px}
+  .privacy .dot{flex:0 0 auto; width:10px; height:10px; border-radius:50%; background:var(--green);
+                margin-top:6px; box-shadow:0 0 0 4px rgba(63,185,80,.18)}
+  .muted{color:var(--muted)}
+  .row{display:flex; flex-wrap:wrap; gap:18px}
+  .col{flex:1 1 320px; min-width:0}
+  .btn{appearance:none; border:1px solid var(--line); background:var(--panel2); color:var(--txt);
+       padding:9px 14px; border-radius:9px; font-size:13.5px; cursor:pointer; font-weight:600;
+       transition:.15s border-color,.15s background}
+  .btn:hover{border-color:var(--accent)}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff}
+  .btn.primary:hover{filter:brightness(1.08)}
+  .btn.ghost{background:transparent}
+  .btn-row{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
+  .steps{counter-reset:s; display:grid; grid-template-columns:1fr; gap:10px; margin:6px 0 0}
+  .step{display:flex; gap:12px; align-items:flex-start}
+  .step .n{counter-increment:s; flex:0 0 auto; width:26px; height:26px; border-radius:50%;
+           background:var(--accent); color:#fff; font-weight:700; font-size:13px;
+           display:grid; place-items:center}
+  .step .n::before{content:counter(s)}
+  code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .codebox{position:relative; background:#0b1016; border:1px solid var(--line); border-radius:10px;
+           padding:14px 14px; overflow:auto; max-height:280px}
+  @media (prefers-color-scheme: light){ .codebox{background:#0d1117} }
+  .codebox pre{margin:0; color:#cfe3ff; font-size:12.5px; white-space:pre; tab-size:2}
+  .copybtn{position:absolute; top:10px; right:10px}
+  .toggle{display:inline-flex; gap:8px; align-items:center; font-size:13px; color:var(--muted); cursor:pointer; user-select:none}
+  .toggle input{accent-color:var(--accent); width:16px; height:16px}
+  textarea{width:100%; min-height:120px; resize:vertical; background:#0b1016; color:#cfe3ff;
+           border:1px solid var(--line); border-radius:10px; padding:12px; font-family:ui-monospace,Consolas,monospace; font-size:12.5px}
+  @media (prefers-color-scheme: light){ textarea{background:#0d1117} }
+  .hidden{display:none !important}
+
+  /* gauge */
+  .gauges{display:flex; flex-wrap:wrap; gap:18px}
+  .gauge{flex:0 0 auto; text-align:center}
+  .gauge .label{font-weight:700; margin-top:6px}
+  .gauge .meta{font-size:12.5px; color:var(--muted)}
+
+  /* headroom advisor */
+  .advisor{border-radius:12px; padding:16px 18px; border:1px solid var(--line)}
+  .advisor.ok{border-left:4px solid var(--green)}
+  .advisor.warn{border-left:4px solid var(--amber)}
+  .advisor.bad{border-left:4px solid var(--red)}
+  .advisor .big{font-size:22px; font-weight:800; margin:2px 0 6px}
+
+  /* bars */
+  .bars{display:flex; flex-direction:column; gap:9px}
+  .bar{display:grid; grid-template-columns:160px 1fr 74px; gap:10px; align-items:center; font-size:13px}
+  .bar .name{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .bar .track{background:var(--chip); border-radius:6px; height:16px; overflow:hidden}
+  .bar .fill{height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); border-radius:6px}
+  .bar .val{text-align:right; color:var(--muted); font-variant-numeric:tabular-nums}
+  @media (max-width:560px){ .bar{grid-template-columns:110px 1fr 60px} }
+
+  /* table */
+  table{width:100%; border-collapse:collapse; font-size:13px}
+  th,td{text-align:left; padding:9px 10px; border-bottom:1px solid var(--line)}
+  th{color:var(--muted); font-weight:600; cursor:pointer; white-space:nowrap}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums}
+  tbody tr:hover{background:var(--panel2)}
+
+  /* chips / badges */
+  .badge{display:inline-block; padding:2px 8px; border-radius:999px; font-size:11.5px; font-weight:700}
+  .badge.safe{background:rgba(63,185,80,.16); color:var(--green)}
+  .badge.review{background:rgba(210,153,34,.16); color:var(--amber)}
+  .badge.adv{background:rgba(248,81,73,.16); color:var(--red)}
+
+  /* fixes */
+  .fix{border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin:0 0 12px; background:var(--panel2)}
+  .fix .head{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:6px}
+  .fix .head .t{font-weight:700}
+  .fix .why{font-size:13px; color:var(--muted); margin:0 0 10px}
+  .fix .cmd{position:relative}
+  details{border:1px solid var(--line); border-radius:10px; padding:0 14px; margin:0 0 10px; background:var(--panel2)}
+  details summary{cursor:pointer; padding:12px 0; font-weight:600; list-style:none}
+  details summary::-webkit-details-marker{display:none}
+  details summary::before{content:"▸ "; color:var(--accent)}
+  details[open] summary::before{content:"▾ "}
+  details .body{padding:0 0 14px; font-size:13.5px; color:var(--muted)}
+  .foot{color:var(--muted); font-size:12.5px; text-align:center; margin-top:30px}
+  .demo-banner{background:rgba(210,153,34,.12); border:1px solid var(--amber); color:var(--amber);
+               border-radius:10px; padding:10px 14px; font-size:13px; font-weight:600; margin:0 0 16px}
+  .toast{position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(20px);
+         background:var(--green); color:#fff; padding:10px 18px; border-radius:10px; font-weight:600;
+         font-size:13.5px; opacity:0; pointer-events:none; transition:.25s; z-index:50}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>DiskDetox</h1>
+  <p class="sub">Free up space on your Windows PC. See what's eating your drive, get ranked fixes, and reclaim space — without anything leaving your computer.</p>
+
+  <div class="privacy">
+    <div class="dot"></div>
+    <div>
+      <strong>Your data never leaves this page.</strong> This tool makes <em>zero</em> network requests — no servers, no analytics, no fonts or scripts loaded from the internet.
+      You run a read-only scan on your own machine, paste the result here, and it's processed entirely in your browser. You can save it to this browser
+      (<span class="mono">localStorage</span>) or to a file you control. Hosting the page publicly is safe because the page is just an empty shell — the data is yours alone.
+    </div>
+  </div>
+
+  <!-- STEP 1: GET THE SCAN -->
+  <div class="panel">
+    <h2>1 · Run the scan</h2>
+    <div class="steps">
+      <div class="step"><div class="n"></div><div>Copy the PowerShell command below.</div></div>
+      <div class="step"><div class="n"></div><div>Open <strong>PowerShell</strong> on Windows (Start → type "PowerShell" → Enter), paste, and press Enter. It's read-only — it deletes nothing and reads only folder/program <em>names and sizes</em>, never file contents.</div></div>
+      <div class="step"><div class="n"></div><div>It saves <span class="mono">disk-health.json</span> to your Desktop and copies it to your clipboard.</div></div>
+      <div class="step"><div class="n"></div><div>Come back here and either <strong>paste</strong> the result or <strong>load the file</strong> in step 2.</div></div>
+    </div>
+
+    <div style="margin:14px 0 8px" class="btn-row">
+      <label class="toggle"><input type="checkbox" id="redactToggle"> Redact paths &amp; machine name (extra privacy)</label>
+    </div>
+
+    <div class="codebox">
+      <button class="btn copybtn" id="copyCmd">Copy</button>
+      <pre id="cmdText"></pre>
+    </div>
+    <p class="muted" style="font-size:12.5px; margin-top:8px">
+      The profile-folder scan can take a minute or two on a full drive — that's normal. Cloud-only OneDrive files are skipped automatically so they don't slow it down or get counted.
+    </p>
+  </div>
+
+  <!-- STEP 2: LOAD DATA -->
+  <div class="panel">
+    <h2>2 · Load your results</h2>
+    <div class="btn-row" style="margin-bottom:12px">
+      <button class="btn primary" id="pasteShow">Paste data</button>
+      <button class="btn" id="loadFileBtn">Load file…</button>
+      <input type="file" id="fileInput" accept=".json,application/json" class="hidden">
+      <button class="btn ghost" id="demoBtn">Show demo data</button>
+      <button class="btn ghost" id="clearBtn">Clear my data</button>
+    </div>
+    <div id="pasteArea" class="hidden">
+      <textarea id="pasteBox" placeholder="Paste the JSON output here, then click Render"></textarea>
+      <div class="btn-row" style="margin-top:10px">
+        <button class="btn primary" id="renderPaste">Render</button>
+        <span class="muted" id="parseMsg" style="font-size:13px"></span>
+      </div>
+    </div>
+    <p class="muted" id="loadStatus" style="font-size:13px; margin:6px 0 0"></p>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="results" class="hidden">
+    <div id="demoBanner" class="demo-banner hidden">Showing example data — run the scan and load your own to see your real drive.</div>
+
+    <!-- Overview -->
+    <div class="panel">
+      <h2>Overview</h2>
+      <div class="row">
+        <div class="col">
+          <div class="gauges" id="gauges"></div>
+        </div>
+        <div class="col">
+          <div class="advisor" id="advisor"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Where space goes -->
+    <div class="panel">
+      <h2>Where your space is going</h2>
+      <h3>Top folders in your user profile</h3>
+      <div class="bars" id="folderBars"></div>
+      <h3 style="margin-top:20px">Biggest app caches (AppData\Local)</h3>
+      <div class="bars" id="appBars"></div>
+    </div>
+
+    <!-- Reclaimable -->
+    <div class="panel">
+      <h2>Reclaimable now</h2>
+      <p class="muted" id="reclaimSummary" style="font-size:13.5px"></p>
+      <table>
+        <thead><tr><th>Location</th><th class="num">Size</th><th>Risk</th><th>Clear it</th></tr></thead>
+        <tbody id="cacheRows"></tbody>
+      </table>
+    </div>
+
+    <!-- Programs -->
+    <div class="panel">
+      <h2>Largest installed programs</h2>
+      <p class="muted" style="font-size:13px">Sizes are Windows' own estimates and can be rough. Uninstall only things you recognize and don't need. <strong>Keep anything that keeps your computer running</strong> (drivers, runtimes, Windows components).</p>
+      <table>
+        <thead><tr><th data-sort="name">Program</th><th class="num" data-sort="mb">Size (MB)</th></tr></thead>
+        <tbody id="programRows"></tbody>
+      </table>
+    </div>
+
+    <!-- Games -->
+    <div class="panel" id="gamesPanel">
+      <h2>Installed games</h2>
+      <div class="bars" id="gameBars"></div>
+    </div>
+
+    <!-- System -->
+    <div class="panel">
+      <h2>System files</h2>
+      <div class="bars" id="systemBars"></div>
+      <p class="muted" id="systemNote" style="font-size:13px; margin-top:10px"></p>
+    </div>
+
+    <!-- Fix suggestions -->
+    <div class="panel">
+      <h2>Suggested fixes (ranked)</h2>
+      <p class="muted" style="font-size:13px">Each command is copy-and-run in PowerShell. <span class="badge safe">Safe</span> = junk you won't miss. <span class="badge review">Review</span> = check before running. <span class="badge adv">Advanced</span> = needs Admin or changes system behavior.</p>
+      <div id="fixes"></div>
+    </div>
+  </div>
+
+  <!-- Explainers -->
+  <div class="panel">
+    <h2>Explainers</h2>
+    <details><summary>Why does a near-full drive slow my computer down?</summary>
+      <div class="body">Windows constantly needs free space for the page file (virtual memory), temporary files, and updates. When a drive — especially an SSD — climbs above roughly 85–90% full, the system has less room to work and write performance drops. Freeing space back below ~85% usually restores normal responsiveness. The goal isn't just to fit a new file; it's to leave breathing room.</div>
+    </details>
+    <details><summary>What's actually safe to delete?</summary>
+      <div class="body">Temporary files, the Recycle Bin, Windows Update leftovers, and most app caches are safe — apps regenerate them as needed. Your Downloads folder is "review" because it's your files. Never delete things in Windows, Program Files, or driver folders unless you know exactly what they are. This tool flags risk levels so you don't have to guess.</div>
+    </details>
+    <details><summary>What are "temp" and "cache" folders?</summary>
+      <div class="body">Temp folders hold short-lived working files that programs forget to clean up. Caches are saved copies of data (web pages, thumbnails, package downloads) kept around to make things faster next time. Both are safe to clear — you'll just see a one-time slowdown as they rebuild.</div>
+    </details>
+    <details><summary>Is hosting this page publicly really safe?</summary>
+      <div class="body">Yes. The page is a static shell with no data in it. Your scan output is pasted in <em>your</em> browser and processed locally — it's never uploaded because the page makes no network calls at all. The only data that could ever be sensitive is folder names, and those stay on your machine. Use the "Redact" toggle if you want even folder paths and your machine name stripped from the scan output.</div>
+    </details>
+    <details><summary>How do I undo a cleanup?</summary>
+      <div class="body">Cache and temp deletions can't be "undone," but they're designed to be disposable — Windows and your apps rebuild them automatically. Items sent to the Recycle Bin can be restored until you empty it. Uninstalled programs can be reinstalled. Nothing this tool suggests touches your personal documents.</div>
+    </details>
+  </div>
+
+  <div class="foot">
+    DiskDetox · diskdetox.com · runs entirely in your browser · no data collected ·
+    <span id="savedNote"></span>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ===================== PowerShell scan template ===================== -->
+<script type="text/plain" id="ps-template">param([switch]$Redact)
+if (-not $PSBoundParameters.ContainsKey('Redact')) { $Redact = __REDACT__ }
+$ErrorActionPreference = 'SilentlyContinue'
+function FolderGB($p){ if(Test-Path $p){ $s=(Get-ChildItem $p -Recurse -File -Force -Attributes !Offline | Measure-Object Length -Sum).Sum; if($null -eq $s){0}else{[math]::Round($s/1GB,2)} } else {0} }
+$drives = Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" | ForEach-Object { [PSCustomObject]@{ id=$_.DeviceID; totalGB=[math]::Round($_.Size/1GB,1); freeGB=[math]::Round($_.FreeSpace/1GB,1); pctFree=[math]::Round($_.FreeSpace/$_.Size*100,0) } }
+$profileFolders = Get-ChildItem $env:USERPROFILE -Directory -Force | ForEach-Object { [PSCustomObject]@{ name=$_.Name; gb=(FolderGB $_.FullName) } } | Sort-Object gb -Descending | Select-Object -First 15
+$appLocal = Get-ChildItem $env:LOCALAPPDATA -Directory -Force | ForEach-Object { [PSCustomObject]@{ name=$_.Name; gb=(FolderGB $_.FullName) } } | Sort-Object gb -Descending | Select-Object -First 12
+$regPaths='HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*','HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*','HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*'
+$programs = Get-ItemProperty $regPaths | Where-Object { $_.DisplayName -and $_.EstimatedSize } | Select-Object @{n='name';e={$_.DisplayName}}, @{n='mb';e={[math]::Round($_.EstimatedSize/1024,0)}} | Sort-Object mb -Descending | Select-Object -First 30
+$cacheDefs=@(@{name='User Temp';path=$env:TEMP;safe=$true},@{name='Windows Temp';path='C:\Windows\Temp';safe=$true},@{name='Windows Update Cache';path='C:\Windows\SoftwareDistribution\Download';safe=$true},@{name='Downloads';path="$env:USERPROFILE\Downloads";safe=$false},@{name='Recycle Bin';path='C:\$Recycle.Bin';safe=$true})
+$caches = foreach($c in $cacheDefs){ [PSCustomObject]@{ name=$c.name; gb=(FolderGB $c.path); path=$c.path; safe=$c.safe } }
+$gameRoots='C:\Program Files (x86)\Steam\steamapps\common','C:\Program Files\Epic Games','C:\Program Files (x86)\Origin Games','C:\Program Files\EA Games','C:\Program Files (x86)\EA Games','C:\Program Files (x86)\GOG Galaxy\Games','C:\Games'
+$games = foreach($r in $gameRoots){ if(Test-Path $r){ Get-ChildItem $r -Directory -Force | ForEach-Object { [PSCustomObject]@{ name=$_.Name; gb=(FolderGB $_.FullName); path=$_.FullName } } } }
+$games = $games | Sort-Object gb -Descending
+$system=[PSCustomObject]@{ hiberfilGB=[math]::Round(((Get-Item C:\hiberfil.sys -Force).Length)/1GB,2); pagefileGB=[math]::Round(((Get-Item C:\pagefile.sys -Force).Length)/1GB,2); driverStoreGB=(FolderGB 'C:\Windows\System32\DriverStore\FileRepository') }
+$machine = if($Redact){$null}else{$env:COMPUTERNAME}
+if($Redact){ foreach($c in $caches){$c.path=$null}; foreach($g in $games){$g.path=$null} }
+$out=[PSCustomObject]@{ schema='disk-health/v1'; generated=(Get-Date).ToString('s'); machine=$machine; redacted=[bool]$Redact; drives=@($drives); profileFolders=@($profileFolders); appDataLocal=@($appLocal); programs=@($programs); caches=@($caches); games=@($games); system=$system }
+$json=$out | ConvertTo-Json -Depth 6
+$dest="$env:USERPROFILE\Desktop\disk-health.json"
+$json | Out-File -FilePath $dest -Encoding utf8
+try { $json | Set-Clipboard } catch {}
+Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskdetox.com)." -ForegroundColor Green</script>
+
+<script>
+(function(){
+  "use strict";
+  var LS_KEY = "diskHealthData.v1";
+
+  // ---------- demo data ----------
+  var DEMO = {
+    schema:"disk-health/v1", generated:"2026-01-01T09:00:00", machine:"DEMO-PC", redacted:false, demo:true,
+    drives:[{id:"C:",totalGB:237,freeGB:19,pctFree:8},{id:"D:",totalGB:931,freeGB:512,pctFree:55}],
+    profileFolders:[
+      {name:"AppData",gb:41.6},{name:"OneDrive",gb:33.2},{name:"Documents",gb:22.1},
+      {name:"Downloads",gb:9.4},{name:"Pictures",gb:7.8},{name:"Videos",gb:5.1},
+      {name:"Desktop",gb:2.3},{name:"Music",gb:1.2}
+    ],
+    appDataLocal:[
+      {name:"Microsoft",gb:14.1},{name:"Google",gb:6.7},{name:"npm-cache",gb:4.2},
+      {name:"pip",gb:3.1},{name:"Programs",gb:2.8},{name:"Temp",gb:1.9},{name:"Packages",gb:1.4}
+    ],
+    programs:[
+      {name:"Graphics Driver Software",mb:3486},{name:"Surface Update",mb:3390},
+      {name:"Microsoft Edge",mb:2670},{name:"Windows SDK",mb:2319},{name:"WebView2 Runtime",mb:2011},
+      {name:"Visual Studio Code",mb:797},{name:"OneDrive",mb:527},{name:"Google Chrome",mb:452},
+      {name:"Git",mb:329},{name:"Python 3.14",mb:173},{name:"Node.js",mb:102}
+    ],
+    caches:[
+      {name:"Windows Temp",gb:2.09,path:"C:\\Windows\\Temp",safe:true},
+      {name:"User Temp",gb:0.45,path:"%TEMP%",safe:true},
+      {name:"Downloads",gb:0.53,path:"Downloads",safe:false},
+      {name:"Windows Update Cache",gb:1.2,path:"C:\\Windows\\SoftwareDistribution\\Download",safe:true},
+      {name:"Recycle Bin",gb:0.8,path:"Recycle Bin",safe:true}
+    ],
+    games:[
+      {name:"Some Big Game",gb:48.2,path:"D:\\Games"},
+      {name:"Command & Conquer Generals",gb:2.4,path:"C:\\Games"},
+      {name:"Red Alert 2",gb:1.1,path:"C:\\Games"}
+    ],
+    system:{hiberfilGB:0,pagefileGB:4.8,driverStoreGB:11.3}
+  };
+
+  // ---------- helpers ----------
+  function $(id){ return document.getElementById(id); }
+  function el(tag,cls,txt){ var e=document.createElement(tag); if(cls)e.className=cls; if(txt!=null)e.textContent=txt; return e; }
+  function arr(x){ if(x==null) return []; return Array.isArray(x)?x:[x]; }
+  function gb(n){ return (Math.round(n*100)/100).toFixed(2)+" GB"; }
+  function esc(s){ return String(s==null?"":s); }
+  function toast(msg){ var t=$("toast"); t.textContent=msg; t.classList.add("show"); setTimeout(function(){t.classList.remove("show");},1700); }
+  function copyText(txt){
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(function(){toast("Copied");}, function(){fallbackCopy(txt);});
+    } else { fallbackCopy(txt); }
+  }
+  function fallbackCopy(txt){
+    var ta=document.createElement("textarea"); ta.value=txt; document.body.appendChild(ta);
+    ta.select(); try{document.execCommand("copy"); toast("Copied");}catch(e){toast("Copy failed");}
+    document.body.removeChild(ta);
+  }
+
+  // ---------- command box ----------
+  function renderCmd(){
+    var tmpl = $("ps-template").textContent;
+    var redact = $("redactToggle").checked;
+    var out = tmpl.replace("__REDACT__", redact ? "$true" : "$false");
+    $("cmdText").textContent = out;
+  }
+  $("redactToggle").addEventListener("change", renderCmd);
+  $("copyCmd").addEventListener("click", function(){ copyText($("cmdText").textContent); });
+
+  // ---------- gauge (inline SVG) ----------
+  function zoneColor(pctFull){
+    if(pctFull>=90) return getCSS("--red");
+    if(pctFull>=85) return getCSS("--amber");
+    return getCSS("--green");
+  }
+  function getCSS(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+  function gauge(drive){
+    var pctFull = Math.max(0,Math.min(100, 100 - drive.pctFree));
+    var R=52, C=2*Math.PI*R, off=C*(1-pctFull/100);
+    var col=zoneColor(pctFull);
+    var wrap=el("div","gauge");
+    var ns="http://www.w3.org/2000/svg";
+    var svg=document.createElementNS(ns,"svg"); svg.setAttribute("width","130"); svg.setAttribute("height","130"); svg.setAttribute("viewBox","0 0 130 130");
+    var bg=document.createElementNS(ns,"circle");
+    bg.setAttribute("cx","65"); bg.setAttribute("cy","65"); bg.setAttribute("r",R);
+    bg.setAttribute("fill","none"); bg.setAttribute("stroke",getCSS("--chip")); bg.setAttribute("stroke-width","12");
+    var fg=document.createElementNS(ns,"circle");
+    fg.setAttribute("cx","65"); fg.setAttribute("cy","65"); fg.setAttribute("r",R);
+    fg.setAttribute("fill","none"); fg.setAttribute("stroke",col); fg.setAttribute("stroke-width","12");
+    fg.setAttribute("stroke-linecap","round");
+    fg.setAttribute("stroke-dasharray",C.toFixed(1));
+    fg.setAttribute("stroke-dashoffset",off.toFixed(1));
+    fg.setAttribute("transform","rotate(-90 65 65)");
+    var t1=document.createElementNS(ns,"text");
+    t1.setAttribute("x","65"); t1.setAttribute("y","61"); t1.setAttribute("text-anchor","middle");
+    t1.setAttribute("font-size","23"); t1.setAttribute("font-weight","800"); t1.setAttribute("fill",getCSS("--txt"));
+    t1.textContent=Math.round(pctFull)+"%";
+    var t2=document.createElementNS(ns,"text");
+    t2.setAttribute("x","65"); t2.setAttribute("y","80"); t2.setAttribute("text-anchor","middle");
+    t2.setAttribute("font-size","11"); t2.setAttribute("fill",getCSS("--muted"));
+    t2.textContent="full";
+    svg.appendChild(bg); svg.appendChild(fg); svg.appendChild(t1); svg.appendChild(t2);
+    wrap.appendChild(svg);
+    wrap.appendChild(el("div","label",drive.id+" drive"));
+    wrap.appendChild(el("div","meta",drive.freeGB+" GB free of "+drive.totalGB+" GB"));
+    return wrap;
+  }
+
+  // ---------- advisor ----------
+  function advisor(data){
+    var box=$("advisor");
+    box.innerHTML="";
+    var c = arr(data.drives).filter(function(d){return d.id && d.id.toUpperCase().indexOf("C")===0;})[0] || arr(data.drives)[0];
+    if(!c){ box.textContent="No drive data."; return; }
+    var pctFull = 100 - c.pctFree;
+    var targetFreePct = 15;               // aim to leave >=15% free (<=85% full)
+    var targetFreeGB = c.totalGB*targetFreePct/100;
+    var needGB = Math.max(0, targetFreeGB - c.freeGB);
+    var cls = pctFull>=90?"bad":(pctFull>=85?"warn":"ok");
+    box.className="advisor "+cls;
+    box.appendChild(el("h3",null,"Headroom advisor — "+c.id));
+    var big=el("div","big");
+    if(needGB<=0){ big.textContent="You're in good shape."; }
+    else { big.textContent="Clear ~"+Math.ceil(needGB)+" GB for healthy headroom"; }
+    box.appendChild(big);
+    var msg = pctFull>=90
+      ? "Your drive is "+Math.round(pctFull)+"% full — into the zone where Windows slows down. "
+      : (pctFull>=85
+        ? "Your drive is "+Math.round(pctFull)+"% full — approaching the slow zone. "
+        : "Your drive is "+Math.round(pctFull)+"% full — healthy. ");
+    msg += needGB>0
+      ? "Getting back under ~85% full means freeing about "+Math.ceil(needGB)+" GB beyond whatever new files you add."
+      : "You have room to add files and still keep performance steady.";
+    box.appendChild(el("p","muted",msg));
+  }
+
+  // ---------- bar charts ----------
+  function bars(containerId, items, unit){
+    var c=$(containerId); c.innerHTML="";
+    items = arr(items).filter(function(i){return (i.gb||i.mb||0)>0;});
+    if(!items.length){ c.appendChild(el("p","muted","No data.")); return; }
+    var max = items.reduce(function(m,i){ return Math.max(m, i.gb!=null?i.gb:i.mb); },0)||1;
+    items.forEach(function(i){
+      var v = i.gb!=null?i.gb:i.mb;
+      var row=el("div","bar");
+      row.appendChild(el("div","name",i.name));
+      var track=el("div","track"); var fill=el("div","fill");
+      fill.style.width=Math.max(2,(v/max*100))+"%"; track.appendChild(fill); row.appendChild(track);
+      row.appendChild(el("div","val", i.gb!=null?gb(v):(v+" MB")));
+      c.appendChild(row);
+    });
+  }
+
+  // ---------- caches table ----------
+  var CLEAR_CMD = {
+    "User Temp":'Remove-Item "$env:TEMP\\*" -Recurse -Force -ErrorAction SilentlyContinue',
+    "Windows Temp":'Remove-Item "C:\\Windows\\Temp\\*" -Recurse -Force -ErrorAction SilentlyContinue   # run as Admin',
+    "Windows Update Cache":'net stop wuauserv; Remove-Item "C:\\Windows\\SoftwareDistribution\\Download\\*" -Recurse -Force -ErrorAction SilentlyContinue; net start wuauserv   # run as Admin',
+    "Recycle Bin":'Clear-RecycleBin -Force -ErrorAction SilentlyContinue',
+    "Downloads":'explorer "$env:USERPROFILE\\Downloads"   # opens the folder so you can review before deleting'
+  };
+  function cacheRows(data){
+    var tb=$("cacheRows"); tb.innerHTML="";
+    var total=0;
+    arr(data.caches).forEach(function(c){
+      if(c.safe) total+=c.gb||0;
+      var tr=el("tr");
+      tr.appendChild(el("td",null,c.name));
+      var td=el("td","num",gb(c.gb||0)); tr.appendChild(td);
+      var risk=el("td"); var b=el("span","badge "+(c.safe?"safe":"review"), c.safe?"Safe":"Review"); risk.appendChild(b); tr.appendChild(risk);
+      var act=el("td");
+      var cmd=CLEAR_CMD[c.name];
+      if(cmd){ var btn=el("button","btn ghost","Copy command"); btn.style.padding="4px 10px"; btn.style.fontSize="12px"; btn.addEventListener("click",function(){copyText(cmd);}); act.appendChild(btn); }
+      else { act.appendChild(el("span","muted","—")); }
+      tr.appendChild(act);
+      tb.appendChild(tr);
+    });
+    $("reclaimSummary").textContent = "About "+gb(total)+" of safe-to-clear junk found (excludes Downloads, which is your files). Clearing it is reversible in practice — Windows rebuilds these automatically.";
+  }
+
+  // ---------- programs (sortable) ----------
+  var progSort={key:"mb",dir:-1};
+  function programRows(data){
+    var tb=$("programRows"); tb.innerHTML="";
+    var items=arr(data.programs).slice();
+    items.sort(function(a,b){
+      var k=progSort.key, av=a[k], bv=b[k];
+      if(k==="name"){ return progSort.dir*String(av).localeCompare(String(bv)); }
+      return progSort.dir*((av||0)-(bv||0));
+    });
+    items.forEach(function(p){
+      var tr=el("tr");
+      tr.appendChild(el("td",null,p.name));
+      tr.appendChild(el("td","num",(p.mb||0).toLocaleString()));
+      tb.appendChild(tr);
+    });
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('#programRows'),function(){});
+  document.querySelectorAll('th[data-sort]').forEach(function(th){
+    th.addEventListener("click",function(){
+      var k=th.getAttribute("data-sort");
+      if(progSort.key===k) progSort.dir*=-1; else { progSort.key=k; progSort.dir=(k==="name"?1:-1); }
+      if(window.__data) programRows(window.__data);
+    });
+  });
+
+  // ---------- system ----------
+  function systemBars(data){
+    var s=data.system||{};
+    var items=[
+      {name:"DriverStore (drivers, approx)",gb:s.driverStoreGB||0},
+      {name:"Page file",gb:s.pagefileGB||0},
+      {name:"Hibernation file",gb:s.hiberfilGB||0}
+    ];
+    bars("systemBars",items);
+    var notes=[];
+    if((s.driverStoreGB||0)>8) notes.push("Your DriverStore is large ("+gb(s.driverStoreGB)+") — often old driver versions piling up. See the Advanced fix below to remove unused ones safely.");
+    if((s.hiberfilGB||0)>0) notes.push("Hibernation file is "+gb(s.hiberfilGB)+"; disabling hibernation reclaims it (Advanced).");
+    $("systemNote").textContent = notes.join(" ");
+  }
+
+  // ---------- fixes ----------
+  function buildFixes(data){
+    var host=$("fixes"); host.innerHTML="";
+    var s=data.system||{};
+    var safeCacheTotal=arr(data.caches).filter(function(c){return c.safe;}).reduce(function(t,c){return t+(c.gb||0);},0);
+    var list=[];
+    list.push({t:"Empty temp files & Recycle Bin",risk:"safe",
+      why:"Clears ~"+gb(safeCacheTotal)+" of disposable junk. Windows and apps rebuild these automatically.",
+      cmd:'Remove-Item "$env:TEMP\\*" -Recurse -Force -ErrorAction SilentlyContinue; Clear-RecycleBin -Force -ErrorAction SilentlyContinue'});
+    list.push({t:"Run Windows Disk Cleanup (system files)",risk:"safe",
+      why:"The built-in cleaner removes Windows Update leftovers, delivery-optimization files, thumbnails and more. Tick everything in the list.",
+      cmd:'cleanmgr'});
+    list.push({t:"Turn on Storage Sense (auto-cleanup)",risk:"safe",
+      why:"Lets Windows automatically clear temp files and empty the Recycle Bin on a schedule so you don't fill up again.",
+      cmd:'start ms-settings:storagesense'});
+    list.push({t:"Make OneDrive files online-only",risk:"review",
+      why:"Frees local space by keeping cloud copies only; files download on demand. Great if OneDrive is one of your biggest folders.",
+      cmd:'# Right-click the OneDrive folder > "Free up space". Or:\nattrib +U -P "$env:USERPROFILE\\OneDrive\\*" /s'});
+    list.push({t:"Move big games/files to another drive",risk:"review",
+      why:"If you have a D: drive with room, move large games there instead of deleting them. Most launchers (Steam, EA) support moving an install.",
+      cmd:'explorer shell:MyComputerFolder   # see your drives and free space'});
+    list.push({t:"Clean up old Windows components (WinSxS)",risk:"adv",
+      why:"Removes superseded update files from the component store. Safe but needs an Admin PowerShell. Analyze first, then clean.",
+      cmd:'DISM /Online /Cleanup-Image /AnalyzeComponentStore\nDISM /Online /Cleanup-Image /StartComponentCleanup   # run as Admin'});
+    if((s.driverStoreGB||0)>8){
+      list.push({t:"Remove unused old driver versions",risk:"adv",
+        why:"Your DriverStore is "+gb(s.driverStoreGB)+", often duplicate old drivers. List them, then remove only the non-active duplicates. Admin required.",
+        cmd:'pnputil /enum-drivers   # review oldDriver duplicates, then for each: pnputil /delete-driver oemNN.inf'});
+    }
+    list.push({t:"Disable hibernation (reclaims the hiberfil)",risk:"adv",
+      why:"Frees a hidden file equal to much of your RAM. Only do this if you don't use Hibernate / Fast Startup. Admin required.",
+      cmd:'powercfg /hibernate off   # run as Admin'});
+
+    list.forEach(function(f){
+      var card=el("div","fix");
+      var head=el("div","head");
+      head.appendChild(el("span","t",f.t));
+      head.appendChild(el("span","badge "+(f.risk==="safe"?"safe":f.risk==="review"?"review":"adv"), f.risk==="safe"?"Safe":f.risk==="review"?"Review":"Advanced"));
+      card.appendChild(head);
+      card.appendChild(el("div","why",f.why));
+      var box=el("div","codebox cmd");
+      var btn=el("button","btn copybtn","Copy"); btn.addEventListener("click",(function(c){return function(){copyText(c);};})(f.cmd));
+      var pre=el("pre"); pre.textContent=f.cmd;
+      box.appendChild(btn); box.appendChild(pre);
+      card.appendChild(box);
+      host.appendChild(card);
+    });
+  }
+
+  // ---------- render all ----------
+  function render(data){
+    window.__data=data;
+    $("results").classList.remove("hidden");
+    $("demoBanner").classList.toggle("hidden", !data.demo);
+    var g=$("gauges"); g.innerHTML="";
+    arr(data.drives).forEach(function(d){ g.appendChild(gauge(d)); });
+    advisor(data);
+    bars("folderBars", data.profileFolders);
+    bars("appBars", data.appDataLocal);
+    cacheRows(data);
+    programRows(data);
+    var games=arr(data.games);
+    $("gamesPanel").classList.toggle("hidden", games.length===0);
+    bars("gameBars", games);
+    systemBars(data);
+    buildFixes(data);
+    $("results").scrollIntoView({behavior:"smooth",block:"start"});
+  }
+
+  // ---------- data intake ----------
+  function parseAndRender(text, source){
+    try{
+      var data=JSON.parse(text);
+      if(!data || !data.schema){ throw new Error("This doesn't look like Disk Health output (missing schema)."); }
+      data.demo=false;
+      saveLocal(data);
+      render(data);
+      $("parseMsg").textContent="";
+      $("loadStatus").textContent="Loaded from "+source+" · "+(new Date().toLocaleString());
+      toast("Data loaded");
+    }catch(e){
+      $("parseMsg").textContent="Couldn't read that: "+e.message;
+      $("parseMsg").style.color=getCSS("--red");
+    }
+  }
+  function saveLocal(data){
+    try{ localStorage.setItem(LS_KEY, JSON.stringify(data)); updateSavedNote(); }catch(e){}
+  }
+  function updateSavedNote(){
+    var has=false; try{ has=!!localStorage.getItem(LS_KEY); }catch(e){}
+    $("savedNote").textContent = has ? "your data is saved in this browser" : "no data saved";
+  }
+
+  $("pasteShow").addEventListener("click",function(){ $("pasteArea").classList.toggle("hidden"); $("pasteBox").focus(); });
+  $("renderPaste").addEventListener("click",function(){ parseAndRender($("pasteBox").value.trim(),"paste"); });
+  $("loadFileBtn").addEventListener("click",function(){ $("fileInput").click(); });
+  $("fileInput").addEventListener("change",function(e){
+    var f=e.target.files[0]; if(!f) return;
+    var r=new FileReader();
+    r.onload=function(){ parseAndRender(String(r.result),"file: "+f.name); };
+    r.readAsText(f);
+  });
+  $("demoBtn").addEventListener("click",function(){ render(JSON.parse(JSON.stringify(DEMO))); $("loadStatus").textContent="Showing demo data (not saved)."; });
+  $("clearBtn").addEventListener("click",function(){
+    try{ localStorage.removeItem(LS_KEY); }catch(e){}
+    window.__data=null; $("results").classList.add("hidden"); $("loadStatus").textContent="Cleared.";
+    updateSavedNote(); toast("Cleared");
+  });
+
+  // ---------- boot ----------
+  renderCmd();
+  updateSavedNote();
+  (function restore(){
+    var raw=null; try{ raw=localStorage.getItem(LS_KEY); }catch(e){}
+    if(raw){ try{ var d=JSON.parse(raw); d.demo=false; render(d); $("loadStatus").textContent="Restored your last data from this browser."; }catch(e){} }
+    else { render(JSON.parse(JSON.stringify(DEMO))); $("loadStatus").textContent="Showing demo data — load your own to begin."; }
+  })();
+})();
+</script>
+</body>
+</html>
