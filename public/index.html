@@ -148,6 +148,41 @@
          background:var(--green); color:#fff; padding:10px 18px; border-radius:10px; font-weight:600;
          font-size:13.5px; opacity:0; pointer-events:none; transition:.25s; z-index:50}
   .toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+
+  /* tabs */
+  .tabs{display:flex; gap:4px; margin:4px 0 20px; overflow-x:auto; scrollbar-width:none; border-bottom:1px solid var(--line)}
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{appearance:none; border:0; background:transparent; color:var(--muted); cursor:pointer; font:inherit;
+       font-size:14px; font-weight:600; padding:10px 14px; border-radius:9px 9px 0 0; white-space:nowrap;
+       border-bottom:2px solid transparent; margin-bottom:-1px; transition:.15s color,.15s border-color}
+  .tab:hover{color:var(--txt)}
+  .tab.active{color:var(--accent); border-bottom-color:var(--accent)}
+  .tab:focus-visible{outline:2px solid var(--accent); outline-offset:-2px}
+
+  /* dashboard KPI cards */
+  .kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:14px; margin:0 0 18px}
+  .kpi{background:var(--panel); border:1px solid var(--line); border-left:4px solid var(--line);
+       border-radius:12px; padding:15px 17px; box-shadow:var(--shadow)}
+  .kpi-label{font-size:11.5px; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.05em}
+  .kpi-value{font-size:30px; font-weight:800; line-height:1.05; margin:7px 0 2px; word-break:break-word}
+  .kpi.namecard .kpi-value{font-size:21px}
+  .kpi-sub{font-size:12.5px; color:var(--muted)}
+  .kpi.ok{border-left-color:var(--green)}
+  .kpi.warn{border-left-color:var(--amber)}
+  .kpi.bad{border-left-color:var(--red)}
+  .kpi.bad .kpi-value{color:var(--red)}
+  .kpi.good{border-left-color:var(--accent)}
+  .kpi.good .kpi-value{color:var(--accent)}
+
+  /* demo banner row + CTA */
+  .demo-banner{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap}
+  .demo-banner .btn{flex:0 0 auto; border-color:var(--amber); color:var(--amber)}
+  .demo-banner .btn:hover{filter:brightness(1.1)}
+
+  /* programs filter */
+  .filter{width:100%; max-width:360px; display:block; margin:0 0 12px; background:var(--panel2); color:var(--txt);
+          border:1px solid var(--line); border-radius:9px; padding:9px 12px; font-size:13.5px}
+  .filter:focus{outline:none; border-color:var(--accent)}
 </style>
 </head>
 <body>
@@ -175,54 +210,25 @@
     </div>
   </div>
 
-  <!-- STEP 1: GET THE SCAN -->
-  <div class="panel">
-    <h2>1 · Run the scan</h2>
-    <div class="steps">
-      <div class="step"><div class="n"></div><div>Copy the PowerShell command below.</div></div>
-      <div class="step"><div class="n"></div><div>Open <strong>PowerShell</strong> on Windows (Start → type "PowerShell" → Enter), paste, and press Enter. It's read-only — it deletes nothing and reads only folder/program <em>names and sizes</em>, never file contents.</div></div>
-      <div class="step"><div class="n"></div><div>It saves <span class="mono">disk-health.json</span> to your Desktop and copies it to your clipboard.</div></div>
-      <div class="step"><div class="n"></div><div>Come back here and either <strong>paste</strong> the result or <strong>load the file</strong> in step 2.</div></div>
-    </div>
-
-    <div style="margin:14px 0 8px" class="btn-row">
-      <label class="toggle"><input type="checkbox" id="redactToggle"> Redact paths &amp; machine name (extra privacy)</label>
-    </div>
-
-    <div class="codebox">
-      <button class="btn copybtn" id="copyCmd">Copy</button>
-      <pre id="cmdText"></pre>
-    </div>
-    <p class="muted" style="font-size:12.5px; margin-top:8px">
-      The profile-folder scan can take a minute or two on a full drive — that's normal. Cloud-only OneDrive files are skipped automatically so they don't slow it down or get counted.
-    </p>
+  <!-- TABS -->
+  <div class="tabs" role="tablist" aria-label="Sections">
+    <button class="tab active" role="tab" id="tab-dashboard" data-tab="dashboard" aria-controls="panel-dashboard" aria-selected="true">Dashboard</button>
+    <button class="tab" role="tab" id="tab-breakdown" data-tab="breakdown" aria-controls="panel-breakdown" aria-selected="false" tabindex="-1">Breakdown</button>
+    <button class="tab" role="tab" id="tab-reclaim" data-tab="reclaim" aria-controls="panel-reclaim" aria-selected="false" tabindex="-1">Reclaim</button>
+    <button class="tab" role="tab" id="tab-programs" data-tab="programs" aria-controls="panel-programs" aria-selected="false" tabindex="-1">Programs</button>
+    <button class="tab" role="tab" id="tab-system" data-tab="system" aria-controls="panel-system" aria-selected="false" tabindex="-1">System</button>
+    <button class="tab" role="tab" id="tab-scan" data-tab="scan" aria-controls="panel-scan" aria-selected="false" tabindex="-1">Scan</button>
+    <button class="tab" role="tab" id="tab-learn" data-tab="learn" aria-controls="panel-learn" aria-selected="false" tabindex="-1">Learn</button>
   </div>
 
-  <!-- STEP 2: LOAD DATA -->
-  <div class="panel">
-    <h2>2 · Load your results</h2>
-    <div class="btn-row" style="margin-bottom:12px">
-      <button class="btn primary" id="pasteShow">Paste data</button>
-      <button class="btn" id="loadFileBtn">Load file…</button>
-      <input type="file" id="fileInput" accept=".json,application/json" class="hidden">
-      <button class="btn ghost" id="demoBtn">Show demo data</button>
-      <button class="btn ghost" id="clearBtn">Clear my data</button>
-    </div>
-    <div id="pasteArea" class="hidden">
-      <textarea id="pasteBox" placeholder="Paste the JSON output here, then click Render"></textarea>
-      <div class="btn-row" style="margin-top:10px">
-        <button class="btn primary" id="renderPaste">Render</button>
-        <span class="muted" id="parseMsg" style="font-size:13px"></span>
-      </div>
-    </div>
-    <p class="muted" id="loadStatus" style="font-size:13px; margin:6px 0 0"></p>
+  <div id="demoBanner" class="demo-banner hidden">
+    <span>Showing <strong>example data</strong> — run the scan and load your own to see your real drive.</span>
+    <button class="btn" id="demoCta" type="button">Run the scan →</button>
   </div>
 
-  <!-- RESULTS -->
-  <div id="results" class="hidden">
-    <div id="demoBanner" class="demo-banner hidden">Showing example data — run the scan and load your own to see your real drive.</div>
-
-    <!-- Overview -->
+  <!-- DASHBOARD -->
+  <section class="tabpanel" id="panel-dashboard" role="tabpanel" aria-labelledby="tab-dashboard" data-panel="dashboard">
+    <div class="kpis" id="kpis"></div>
     <div class="panel">
       <h2>Overview</h2>
       <div class="row">
@@ -234,8 +240,10 @@
         </div>
       </div>
     </div>
+  </section>
 
-    <!-- Where space goes -->
+  <!-- BREAKDOWN -->
+  <section class="tabpanel hidden" id="panel-breakdown" role="tabpanel" aria-labelledby="tab-breakdown" data-panel="breakdown">
     <div class="panel">
       <h2>Where your space is going</h2>
       <h3>Top folders in your user profile</h3>
@@ -243,8 +251,14 @@
       <h3 style="margin-top:20px">Biggest app caches (AppData\Local)</h3>
       <div class="bars" id="appBars"></div>
     </div>
+    <div class="panel" id="gamesPanel">
+      <h2>Installed games</h2>
+      <div class="bars" id="gameBars"></div>
+    </div>
+  </section>
 
-    <!-- Reclaimable -->
+  <!-- RECLAIM -->
+  <section class="tabpanel hidden" id="panel-reclaim" role="tabpanel" aria-labelledby="tab-reclaim" data-panel="reclaim">
     <div class="panel">
       <h2>Reclaimable now</h2>
       <p class="muted" id="reclaimSummary" style="font-size:13.5px"></p>
@@ -253,57 +267,100 @@
         <tbody id="cacheRows"></tbody>
       </table>
     </div>
-
-    <!-- Programs -->
-    <div class="panel">
-      <h2>Largest installed programs</h2>
-      <p class="muted" style="font-size:13px">Sizes are Windows' own estimates and can be rough. Uninstall only things you recognize and don't need. <strong>Keep anything that keeps your computer running</strong> (drivers, runtimes, Windows components).</p>
-      <table>
-        <thead><tr><th data-sort="name">Program</th><th class="num" data-sort="mb">Size (MB)</th></tr></thead>
-        <tbody id="programRows"></tbody>
-      </table>
-    </div>
-
-    <!-- Games -->
-    <div class="panel" id="gamesPanel">
-      <h2>Installed games</h2>
-      <div class="bars" id="gameBars"></div>
-    </div>
-
-    <!-- System -->
-    <div class="panel">
-      <h2>System files</h2>
-      <div class="bars" id="systemBars"></div>
-      <p class="muted" id="systemNote" style="font-size:13px; margin-top:10px"></p>
-    </div>
-
-    <!-- Fix suggestions -->
     <div class="panel">
       <h2>Suggested fixes (ranked)</h2>
       <p class="muted" style="font-size:13px">Each command is copy-and-run in PowerShell. <span class="badge safe">Safe</span> = junk you won't miss. <span class="badge review">Review</span> = check before running. <span class="badge adv">Advanced</span> = needs Admin or changes system behavior.</p>
       <div id="fixes"></div>
     </div>
-  </div>
+  </section>
 
-  <!-- Explainers -->
-  <div class="panel">
-    <h2>Explainers</h2>
-    <details><summary>Why does a near-full drive slow my computer down?</summary>
-      <div class="body">Windows constantly needs free space for the page file (virtual memory), temporary files, and updates. When a drive — especially an SSD — climbs above roughly 85–90% full, the system has less room to work and write performance drops. Freeing space back below ~85% usually restores normal responsiveness. The goal isn't just to fit a new file; it's to leave breathing room.</div>
-    </details>
-    <details><summary>What's actually safe to delete?</summary>
-      <div class="body">Temporary files, the Recycle Bin, Windows Update leftovers, and most app caches are safe — apps regenerate them as needed. Your Downloads folder is "review" because it's your files. Never delete things in Windows, Program Files, or driver folders unless you know exactly what they are. This tool flags risk levels so you don't have to guess.</div>
-    </details>
-    <details><summary>What are "temp" and "cache" folders?</summary>
-      <div class="body">Temp folders hold short-lived working files that programs forget to clean up. Caches are saved copies of data (web pages, thumbnails, package downloads) kept around to make things faster next time. Both are safe to clear — you'll just see a one-time slowdown as they rebuild.</div>
-    </details>
-    <details><summary>Is hosting this page publicly really safe?</summary>
-      <div class="body">Yes. The page is a static shell with no data in it. Your scan output is pasted in <em>your</em> browser and processed locally — it's never uploaded because the page makes no network calls at all. The only data that could ever be sensitive is folder names, and those stay on your machine. Use the "Redact" toggle if you want even folder paths and your machine name stripped from the scan output.</div>
-    </details>
-    <details><summary>How do I undo a cleanup?</summary>
-      <div class="body">Cache and temp deletions can't be "undone," but they're designed to be disposable — Windows and your apps rebuild them automatically. Items sent to the Recycle Bin can be restored until you empty it. Uninstalled programs can be reinstalled. Nothing this tool suggests touches your personal documents.</div>
-    </details>
-  </div>
+  <!-- PROGRAMS -->
+  <section class="tabpanel hidden" id="panel-programs" role="tabpanel" aria-labelledby="tab-programs" data-panel="programs">
+    <div class="panel">
+      <h2>Largest installed programs</h2>
+      <p class="muted" style="font-size:13px">Sizes are Windows' own estimates and can be rough. Uninstall only things you recognize and don't need. <strong>Keep anything that keeps your computer running</strong> (drivers, runtimes, Windows components).</p>
+      <input type="search" id="programFilter" class="filter" placeholder="Filter programs by name…" autocomplete="off" aria-label="Filter programs by name">
+      <table>
+        <thead><tr><th data-sort="name">Program</th><th class="num" data-sort="mb">Size (MB)</th></tr></thead>
+        <tbody id="programRows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- SYSTEM -->
+  <section class="tabpanel hidden" id="panel-system" role="tabpanel" aria-labelledby="tab-system" data-panel="system">
+    <div class="panel">
+      <h2>System files</h2>
+      <div class="bars" id="systemBars"></div>
+      <p class="muted" id="systemNote" style="font-size:13px; margin-top:10px"></p>
+    </div>
+  </section>
+
+  <!-- SCAN -->
+  <section class="tabpanel hidden" id="panel-scan" role="tabpanel" aria-labelledby="tab-scan" data-panel="scan">
+    <div class="panel">
+      <h2>1 · Run the scan</h2>
+      <div class="steps">
+        <div class="step"><div class="n"></div><div>Copy the PowerShell command below.</div></div>
+        <div class="step"><div class="n"></div><div>Open <strong>PowerShell</strong> on Windows (Start → type "PowerShell" → Enter), paste, and press Enter. It's read-only — it deletes nothing and reads only folder/program <em>names and sizes</em>, never file contents.</div></div>
+        <div class="step"><div class="n"></div><div>It saves <span class="mono">disk-health.json</span> to your Desktop and copies it to your clipboard.</div></div>
+        <div class="step"><div class="n"></div><div>Come back here and either <strong>paste</strong> the result or <strong>load the file</strong> just below.</div></div>
+      </div>
+
+      <div style="margin:14px 0 8px" class="btn-row">
+        <label class="toggle"><input type="checkbox" id="redactToggle"> Redact paths &amp; machine name (extra privacy)</label>
+      </div>
+
+      <div class="codebox">
+        <button class="btn copybtn" id="copyCmd">Copy</button>
+        <pre id="cmdText"></pre>
+      </div>
+      <p class="muted" style="font-size:12.5px; margin-top:8px">
+        The profile-folder scan can take a minute or two on a full drive — that's normal. Cloud-only OneDrive files are skipped automatically so they don't slow it down or get counted.
+      </p>
+    </div>
+
+    <div class="panel">
+      <h2>2 · Load your results</h2>
+      <div class="btn-row" style="margin-bottom:12px">
+        <button class="btn primary" id="pasteShow">Paste data</button>
+        <button class="btn" id="loadFileBtn">Load file…</button>
+        <input type="file" id="fileInput" accept=".json,application/json" class="hidden">
+        <button class="btn ghost" id="demoBtn">Show demo data</button>
+        <button class="btn ghost" id="clearBtn">Clear my data</button>
+      </div>
+      <div id="pasteArea" class="hidden">
+        <textarea id="pasteBox" placeholder="Paste the JSON output here, then click Render"></textarea>
+        <div class="btn-row" style="margin-top:10px">
+          <button class="btn primary" id="renderPaste">Render</button>
+          <span class="muted" id="parseMsg" style="font-size:13px"></span>
+        </div>
+      </div>
+      <p class="muted" id="loadStatus" style="font-size:13px; margin:6px 0 0"></p>
+    </div>
+  </section>
+
+  <!-- LEARN -->
+  <section class="tabpanel hidden" id="panel-learn" role="tabpanel" aria-labelledby="tab-learn" data-panel="learn">
+    <div class="panel">
+      <h2>Explainers</h2>
+      <details><summary>Why does a near-full drive slow my computer down?</summary>
+        <div class="body">Windows constantly needs free space for the page file (virtual memory), temporary files, and updates. When a drive — especially an SSD — climbs above roughly 85–90% full, the system has less room to work and write performance drops. Freeing space back below ~85% usually restores normal responsiveness. The goal isn't just to fit a new file; it's to leave breathing room.</div>
+      </details>
+      <details><summary>What's actually safe to delete?</summary>
+        <div class="body">Temporary files, the Recycle Bin, Windows Update leftovers, and most app caches are safe — apps regenerate them as needed. Your Downloads folder is "review" because it's your files. Never delete things in Windows, Program Files, or driver folders unless you know exactly what they are. This tool flags risk levels so you don't have to guess.</div>
+      </details>
+      <details><summary>What are "temp" and "cache" folders?</summary>
+        <div class="body">Temp folders hold short-lived working files that programs forget to clean up. Caches are saved copies of data (web pages, thumbnails, package downloads) kept around to make things faster next time. Both are safe to clear — you'll just see a one-time slowdown as they rebuild.</div>
+      </details>
+      <details><summary>Is hosting this page publicly really safe?</summary>
+        <div class="body">Yes. The page is a static shell with no data in it. Your scan output is pasted in <em>your</em> browser and processed locally — it's never uploaded because the page makes no network calls at all. The only data that could ever be sensitive is folder names, and those stay on your machine. Use the "Redact" toggle if you want even folder paths and your machine name stripped from the scan output.</div>
+      </details>
+      <details><summary>How do I undo a cleanup?</summary>
+        <div class="body">Cache and temp deletions can't be "undone," but they're designed to be disposable — Windows and your apps rebuild them automatically. Items sent to the Recycle Bin can be restored until you empty it. Uninstalled programs can be reinstalled. Nothing this tool suggests touches your personal documents.</div>
+      </details>
+    </div>
+  </section>
 
   <div class="foot">
     DiskDetox · diskdetox.com · runs entirely in your browser · no data collected ·
@@ -472,6 +529,27 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     box.appendChild(el("p","muted",msg));
   }
 
+  // ---------- dashboard KPIs ----------
+  function kpiCard(label,value,sub,tone,isText){
+    var card=el("div","kpi"+(tone?(" "+tone):"")+(isText?" namecard":""));
+    card.appendChild(el("div","kpi-label",label));
+    card.appendChild(el("div","kpi-value",value));
+    if(sub) card.appendChild(el("div","kpi-sub",sub));
+    return card;
+  }
+  function dashboard(data){
+    var host=$("kpis"); host.innerHTML="";
+    var c = arr(data.drives).filter(function(d){return d.id && d.id.toUpperCase().indexOf("C")===0;})[0] || arr(data.drives)[0];
+    var safeReclaim = arr(data.caches).filter(function(x){return x.safe;}).reduce(function(t,x){return t+(x.gb||0);},0);
+    var topFolder = arr(data.profileFolders).slice().sort(function(a,b){return (b.gb||0)-(a.gb||0);})[0];
+    var pctFull = c ? Math.round(100-c.pctFree) : null;
+    var zone = pctFull==null ? "" : (pctFull>=90?"bad":pctFull>=85?"warn":"ok");
+    host.appendChild(kpiCard(c?(c.id+" used"):"Drive used", pctFull==null?"—":pctFull+"%", c?(Math.round(c.totalGB-c.freeGB)+" of "+c.totalGB+" GB used"):"", zone, false));
+    host.appendChild(kpiCard("Free space", c?(Math.round(c.freeGB)+" GB"):"—", c?("on "+c.id+" drive"):"", "", false));
+    host.appendChild(kpiCard("Reclaimable now", gb(safeReclaim), "safe-to-clear junk", "good", false));
+    host.appendChild(kpiCard("Biggest folder", topFolder?topFolder.name:"—", topFolder?gb(topFolder.gb):"", "", true));
+  }
+
   // ---------- bar charts ----------
   function bars(containerId, items, unit){
     var c=$(containerId); c.innerHTML="";
@@ -516,16 +594,21 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     $("reclaimSummary").textContent = "About "+gb(total)+" of safe-to-clear junk found (excludes Downloads, which is your files). Clearing it is reversible in practice — Windows rebuilds these automatically.";
   }
 
-  // ---------- programs (sortable) ----------
+  // ---------- programs (sortable + filterable) ----------
   var progSort={key:"mb",dir:-1};
+  var progFilter="";
   function programRows(data){
     var tb=$("programRows"); tb.innerHTML="";
     var items=arr(data.programs).slice();
+    if(progFilter){ items=items.filter(function(p){ return String(p.name).toLowerCase().indexOf(progFilter)>-1; }); }
     items.sort(function(a,b){
       var k=progSort.key, av=a[k], bv=b[k];
       if(k==="name"){ return progSort.dir*String(av).localeCompare(String(bv)); }
       return progSort.dir*((av||0)-(bv||0));
     });
+    if(!items.length){
+      var tr0=el("tr"); var td0=el("td","muted", progFilter?("No programs match “"+progFilter+"”."):"No data."); td0.colSpan=2; tr0.appendChild(td0); tb.appendChild(tr0); return;
+    }
     items.forEach(function(p){
       var tr=el("tr");
       tr.appendChild(el("td",null,p.name));
@@ -606,11 +689,25 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     });
   }
 
+  // ---------- tabs ----------
+  function activateTab(name){
+    Array.prototype.forEach.call(document.querySelectorAll(".tab"), function(t){
+      var on = t.getAttribute("data-tab")===name;
+      t.classList.toggle("active", on);
+      t.setAttribute("aria-selected", on?"true":"false");
+      t.tabIndex = on?0:-1;
+    });
+    Array.prototype.forEach.call(document.querySelectorAll(".tabpanel"), function(p){
+      p.classList.toggle("hidden", p.getAttribute("data-panel")!==name);
+    });
+    window.scrollTo({top:0,behavior:"smooth"});
+  }
+
   // ---------- render all ----------
   function render(data){
     window.__data=data;
-    $("results").classList.remove("hidden");
     $("demoBanner").classList.toggle("hidden", !data.demo);
+    dashboard(data);
     var g=$("gauges"); g.innerHTML="";
     arr(data.drives).forEach(function(d){ g.appendChild(gauge(d)); });
     advisor(data);
@@ -623,7 +720,6 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     bars("gameBars", games);
     systemBars(data);
     buildFixes(data);
-    $("results").scrollIntoView({behavior:"smooth",block:"start"});
   }
 
   // ---------- data intake ----------
@@ -634,6 +730,7 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
       data.demo=false;
       saveLocal(data);
       render(data);
+      activateTab("dashboard");
       $("parseMsg").textContent="";
       $("loadStatus").textContent="Loaded from "+source+" · "+(new Date().toLocaleString());
       toast("Data loaded");
@@ -659,20 +756,36 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     r.onload=function(){ parseAndRender(String(r.result),"file: "+f.name); };
     r.readAsText(f);
   });
-  $("demoBtn").addEventListener("click",function(){ render(JSON.parse(JSON.stringify(DEMO))); $("loadStatus").textContent="Showing demo data (not saved)."; });
+  $("demoBtn").addEventListener("click",function(){ render(JSON.parse(JSON.stringify(DEMO))); $("loadStatus").textContent="Showing demo data (not saved)."; activateTab("dashboard"); });
   $("clearBtn").addEventListener("click",function(){
     try{ localStorage.removeItem(LS_KEY); }catch(e){}
-    window.__data=null; $("results").classList.add("hidden"); $("loadStatus").textContent="Cleared.";
-    updateSavedNote(); toast("Cleared");
+    render(JSON.parse(JSON.stringify(DEMO)));
+    $("loadStatus").textContent="Cleared — showing example data again.";
+    updateSavedNote(); activateTab("dashboard"); toast("Cleared");
   });
+  $("demoCta").addEventListener("click",function(){ activateTab("scan"); });
+  Array.prototype.forEach.call(document.querySelectorAll(".tab"), function(t){
+    t.addEventListener("click", function(){ activateTab(t.getAttribute("data-tab")); });
+    t.addEventListener("keydown", function(e){
+      if(e.key!=="ArrowRight" && e.key!=="ArrowLeft") return;
+      e.preventDefault();
+      var tabs=Array.prototype.slice.call(document.querySelectorAll(".tab"));
+      var i=tabs.indexOf(t);
+      var ni = e.key==="ArrowRight" ? (i+1)%tabs.length : (i-1+tabs.length)%tabs.length;
+      tabs[ni].focus(); activateTab(tabs[ni].getAttribute("data-tab"));
+    });
+  });
+  $("programFilter").addEventListener("input", function(){ progFilter=this.value.toLowerCase(); if(window.__data) programRows(window.__data); });
 
   // ---------- boot ----------
   renderCmd();
   updateSavedNote();
   (function restore(){
     var raw=null; try{ raw=localStorage.getItem(LS_KEY); }catch(e){}
-    if(raw){ try{ var d=JSON.parse(raw); d.demo=false; render(d); $("loadStatus").textContent="Restored your last data from this browser."; }catch(e){} }
+    if(raw){ try{ var d=JSON.parse(raw); d.demo=false; render(d); $("loadStatus").textContent="Restored your last data from this browser."; }
+             catch(e){ render(JSON.parse(JSON.stringify(DEMO))); $("loadStatus").textContent="Showing demo data — load your own to begin."; } }
     else { render(JSON.parse(JSON.stringify(DEMO))); $("loadStatus").textContent="Showing demo data — load your own to begin."; }
+    activateTab("dashboard");
   })();
 })();
 </script>

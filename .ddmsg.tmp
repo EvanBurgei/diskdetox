@@ -1,0 +1,19 @@
+Tabbed layout + Dashboard KPIs + program filter
+
+Break the long single-scroll page into 7 tabs (Dashboard, Breakdown,
+Reclaim, Programs, System, Scan, Learn) with an accessible tablist
+(roles, arrow-key nav, horizontal scroll on mobile). Header + privacy
+promise stay pinned above the tabs.
+
+- Dashboard: new at-a-glance KPI cards (drive used pct, free space,
+  reclaimable now, biggest folder) above the gauges + advisor.
+- Programs: added a name filter box.
+- Demo banner gets a "Run the scan" CTA that jumps to the Scan tab.
+- render() drops the results wrapper/scrollIntoView; data loads now
+  switch to the Dashboard tab; Clear returns to the demo Dashboard.
+
+All element IDs + render functions preserved. Verified live: tabs
+switch, KPIs compute, filter works, resilient single-object parsing
+intact, 0 network resources, CSP clean, dark/light + mobile.
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
