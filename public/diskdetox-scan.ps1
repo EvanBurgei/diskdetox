@@ -66,11 +66,14 @@ $programs = Get-ItemProperty $regPaths |
 
 Write-Host "Measuring cleanable caches..." -ForegroundColor Cyan
 $cacheDefs = @(
-  @{ name='User Temp';            path=$env:TEMP;                                    safe=$true  },
-  @{ name='Windows Temp';         path='C:\Windows\Temp';                            safe=$true  },
-  @{ name='Windows Update Cache'; path='C:\Windows\SoftwareDistribution\Download';   safe=$true  },
-  @{ name='Downloads';            path="$env:USERPROFILE\Downloads";                 safe=$false },
-  @{ name='Recycle Bin';          path='C:\$Recycle.Bin';                            safe=$true  }
+  @{ name='User Temp';            path=$env:TEMP;                                                  safe=$true  },
+  @{ name='Windows Temp';         path='C:\Windows\Temp';                                          safe=$true  },
+  @{ name='Windows Update Cache'; path='C:\Windows\SoftwareDistribution\Download';                 safe=$true  },
+  @{ name='Chrome cache';         path="$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Cache";  safe=$true  },
+  @{ name='Edge cache';           path="$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Cache"; safe=$true  },
+  @{ name='Downloads';            path="$env:USERPROFILE\Downloads";                               safe=$false },
+  @{ name='Recycle Bin';          path='C:\$Recycle.Bin';                                          safe=$true  },
+  @{ name='Windows.old (previous Windows)'; path='C:\Windows.old';                                 safe=$false }
 )
 $caches = foreach ($c in $cacheDefs) {
   [PSCustomObject]@{ name=$c.name; gb=(FolderGB $c.path); path=$c.path; safe=$c.safe }
@@ -93,6 +96,22 @@ $games = foreach ($r in $gameRoots) {
 }
 $games = $games | Sort-Object gb -Descending
 
+Write-Host "Finding your largest individual files (skips AppData; one more pass)..." -ForegroundColor Cyan
+$largestFiles = & {
+  Get-ChildItem $env:USERPROFILE -File -Force -Attributes !Offline
+  Get-ChildItem $env:USERPROFILE -Directory -Force | Where-Object { $_.Name -ne 'AppData' } | ForEach-Object {
+    Get-ChildItem $_.FullName -Recurse -File -Force -Attributes !Offline
+  }
+} | Where-Object { $_.Length -ge 100MB } |
+  Sort-Object Length -Descending | Select-Object -First 20 | ForEach-Object {
+    [PSCustomObject]@{
+      name = $_.Name
+      gb   = [math]::Round($_.Length / 1GB, 2)
+      path = $_.DirectoryName
+      ext  = $_.Extension.TrimStart('.').ToLowerInvariant()
+    }
+  }
+
 Write-Host "Measuring system files (DriverStore can take a moment)..." -ForegroundColor Cyan
 $system = [PSCustomObject]@{
   hiberfilGB    = [math]::Round(((Get-Item C:\hiberfil.sys -Force).Length) / 1GB, 2)
@@ -105,6 +124,10 @@ $machine = if ($Redact) { $null } else { $env:COMPUTERNAME }
 if ($Redact) {
   foreach ($c in $caches) { $c.path = $null }
   foreach ($g in $games)  { $g.path = $null }
+  foreach ($f in $largestFiles) {
+    $f.path = $null
+    $f.name = if ($f.ext) { "(a .$($f.ext) file)" } else { "(a large file)" }
+  }
 }
 
 $out = [PSCustomObject]@{
@@ -118,6 +141,7 @@ $out = [PSCustomObject]@{
   programs       = @($programs)
   caches         = @($caches)
   games          = @($games)
+  largestFiles   = @($largestFiles)
   system         = $system
 }
 

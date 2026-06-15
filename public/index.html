@@ -183,6 +183,18 @@
   .filter{width:100%; max-width:360px; display:block; margin:0 0 12px; background:var(--panel2); color:var(--txt);
           border:1px solid var(--line); border-radius:9px; padding:9px 12px; font-size:13.5px}
   .filter:focus{outline:none; border-color:var(--accent)}
+
+  /* savings hero + trend */
+  .savings{background:linear-gradient(135deg, rgba(45,212,191,.10), rgba(52,211,153,.04)); border:1px solid var(--line);
+           border-left:4px solid var(--accent); border-radius:14px; padding:16px 20px; margin:0 0 14px; box-shadow:var(--shadow)}
+  .savings .big{font-size:22px; font-weight:800; margin:0 0 4px}
+  .savings .big b{color:var(--accent)}
+  .savings .msg{font-size:13.5px; color:var(--muted); margin:0 0 12px}
+  .savings .pbar{height:10px; background:var(--chip); border-radius:6px; overflow:hidden}
+  .savings .pbar > span{display:block; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); border-radius:6px; transition:width .4s}
+  .trend{font-size:13px; color:var(--muted); margin:0 0 16px; display:flex; align-items:center; gap:8px}
+  .trend .tdot{width:9px; height:9px; border-radius:50%; background:var(--green); flex:0 0 auto}
+  .trend.down .tdot{background:var(--amber)}
 </style>
 </head>
 <body>
@@ -228,6 +240,8 @@
 
   <!-- DASHBOARD -->
   <section class="tabpanel" id="panel-dashboard" role="tabpanel" aria-labelledby="tab-dashboard" data-panel="dashboard">
+    <div id="savings" class="savings hidden"></div>
+    <div id="trend" class="trend hidden"></div>
     <div class="kpis" id="kpis"></div>
     <div class="panel">
       <h2>Overview</h2>
@@ -250,6 +264,14 @@
       <div class="bars" id="folderBars"></div>
       <h3 style="margin-top:20px">Biggest app caches (AppData\Local)</h3>
       <div class="bars" id="appBars"></div>
+    </div>
+    <div class="panel" id="filesPanel">
+      <h2>Biggest individual files</h2>
+      <p class="muted" style="font-size:13px">The largest single files in your profile (≥100&nbsp;MB, skips app data). These are <em>your</em> files — review before deleting. Open the folder, confirm it's junk, then remove it.</p>
+      <table>
+        <thead><tr><th>File</th><th class="num">Size</th><th>Location</th></tr></thead>
+        <tbody id="fileRows"></tbody>
+      </table>
     </div>
     <div class="panel" id="gamesPanel">
       <h2>Installed games</h2>
@@ -316,7 +338,7 @@
         <pre id="cmdText"></pre>
       </div>
       <p class="muted" style="font-size:12.5px; margin-top:8px">
-        The profile-folder scan can take a minute or two on a full drive — that's normal. Cloud-only OneDrive files are skipped automatically so they don't slow it down or get counted.
+        The profile scan (folder sizes + your largest files) can take a couple of minutes on a full drive — that's normal. Cloud-only OneDrive files are skipped automatically so they don't slow it down or get counted.
       </p>
     </div>
 
@@ -380,15 +402,16 @@ $profileFolders = Get-ChildItem $env:USERPROFILE -Directory -Force | ForEach-Obj
 $appLocal = Get-ChildItem $env:LOCALAPPDATA -Directory -Force | ForEach-Object { [PSCustomObject]@{ name=$_.Name; gb=(FolderGB $_.FullName) } } | Sort-Object gb -Descending | Select-Object -First 12
 $regPaths='HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*','HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*','HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*'
 $programs = Get-ItemProperty $regPaths | Where-Object { $_.DisplayName -and $_.EstimatedSize } | Select-Object @{n='name';e={$_.DisplayName}}, @{n='mb';e={[math]::Round($_.EstimatedSize/1024,0)}} | Sort-Object mb -Descending | Select-Object -First 30
-$cacheDefs=@(@{name='User Temp';path=$env:TEMP;safe=$true},@{name='Windows Temp';path='C:\Windows\Temp';safe=$true},@{name='Windows Update Cache';path='C:\Windows\SoftwareDistribution\Download';safe=$true},@{name='Downloads';path="$env:USERPROFILE\Downloads";safe=$false},@{name='Recycle Bin';path='C:\$Recycle.Bin';safe=$true})
+$cacheDefs=@(@{name='User Temp';path=$env:TEMP;safe=$true},@{name='Windows Temp';path='C:\Windows\Temp';safe=$true},@{name='Windows Update Cache';path='C:\Windows\SoftwareDistribution\Download';safe=$true},@{name='Chrome cache';path="$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Cache";safe=$true},@{name='Edge cache';path="$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Cache";safe=$true},@{name='Downloads';path="$env:USERPROFILE\Downloads";safe=$false},@{name='Recycle Bin';path='C:\$Recycle.Bin';safe=$true},@{name='Windows.old (previous Windows)';path='C:\Windows.old';safe=$false})
 $caches = foreach($c in $cacheDefs){ [PSCustomObject]@{ name=$c.name; gb=(FolderGB $c.path); path=$c.path; safe=$c.safe } }
 $gameRoots='C:\Program Files (x86)\Steam\steamapps\common','C:\Program Files\Epic Games','C:\Program Files (x86)\Origin Games','C:\Program Files\EA Games','C:\Program Files (x86)\EA Games','C:\Program Files (x86)\GOG Galaxy\Games','C:\Games'
 $games = foreach($r in $gameRoots){ if(Test-Path $r){ Get-ChildItem $r -Directory -Force | ForEach-Object { [PSCustomObject]@{ name=$_.Name; gb=(FolderGB $_.FullName); path=$_.FullName } } } }
 $games = $games | Sort-Object gb -Descending
+$largestFiles = & { Get-ChildItem $env:USERPROFILE -File -Force -Attributes !Offline; Get-ChildItem $env:USERPROFILE -Directory -Force | Where-Object { $_.Name -ne 'AppData' } | ForEach-Object { Get-ChildItem $_.FullName -Recurse -File -Force -Attributes !Offline } } | Where-Object { $_.Length -ge 100MB } | Sort-Object Length -Descending | Select-Object -First 20 | ForEach-Object { [PSCustomObject]@{ name=$_.Name; gb=[math]::Round($_.Length/1GB,2); path=$_.DirectoryName; ext=$_.Extension.TrimStart('.').ToLowerInvariant() } }
 $system=[PSCustomObject]@{ hiberfilGB=[math]::Round(((Get-Item C:\hiberfil.sys -Force).Length)/1GB,2); pagefileGB=[math]::Round(((Get-Item C:\pagefile.sys -Force).Length)/1GB,2); driverStoreGB=(FolderGB 'C:\Windows\System32\DriverStore\FileRepository') }
 $machine = if($Redact){$null}else{$env:COMPUTERNAME}
-if($Redact){ foreach($c in $caches){$c.path=$null}; foreach($g in $games){$g.path=$null} }
-$out=[PSCustomObject]@{ schema='disk-health/v1'; generated=(Get-Date).ToString('s'); machine=$machine; redacted=[bool]$Redact; drives=@($drives); profileFolders=@($profileFolders); appDataLocal=@($appLocal); programs=@($programs); caches=@($caches); games=@($games); system=$system }
+if($Redact){ foreach($c in $caches){$c.path=$null}; foreach($g in $games){$g.path=$null}; foreach($f in $largestFiles){ $f.path=$null; $f.name= if($f.ext){"(a .$($f.ext) file)"}else{"(a large file)"} } }
+$out=[PSCustomObject]@{ schema='disk-health/v1'; generated=(Get-Date).ToString('s'); machine=$machine; redacted=[bool]$Redact; drives=@($drives); profileFolders=@($profileFolders); appDataLocal=@($appLocal); programs=@($programs); caches=@($caches); games=@($games); largestFiles=@($largestFiles); system=$system }
 $json=$out | ConvertTo-Json -Depth 6
 $dest="$env:USERPROFILE\Desktop\disk-health.json"
 $json | Out-File -FilePath $dest -Encoding utf8
@@ -422,14 +445,24 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     caches:[
       {name:"Windows Temp",gb:2.09,path:"C:\\Windows\\Temp",safe:true},
       {name:"User Temp",gb:0.45,path:"%TEMP%",safe:true},
+      {name:"Chrome cache",gb:1.74,path:"AppData\\Local\\Google\\Chrome",safe:true},
+      {name:"Edge cache",gb:0.62,path:"AppData\\Local\\Microsoft\\Edge",safe:true},
       {name:"Downloads",gb:0.53,path:"Downloads",safe:false},
       {name:"Windows Update Cache",gb:1.2,path:"C:\\Windows\\SoftwareDistribution\\Download",safe:true},
-      {name:"Recycle Bin",gb:0.8,path:"Recycle Bin",safe:true}
+      {name:"Recycle Bin",gb:0.8,path:"Recycle Bin",safe:true},
+      {name:"Windows.old (previous Windows)",gb:14.7,path:"C:\\Windows.old",safe:false}
     ],
     games:[
       {name:"Some Big Game",gb:48.2,path:"D:\\Games"},
       {name:"Command & Conquer Generals",gb:2.4,path:"C:\\Games"},
       {name:"Red Alert 2",gb:1.1,path:"C:\\Games"}
+    ],
+    largestFiles:[
+      {name:"Windows11_24H2.iso",gb:5.8,path:"Downloads",ext:"iso"},
+      {name:"family-reunion-2025.mp4",gb:3.1,path:"Videos",ext:"mp4"},
+      {name:"Ubuntu-dev.vhdx",gb:2.4,path:"Documents\\VMs",ext:"vhdx"},
+      {name:"project-backup-final.zip",gb:1.6,path:"Desktop",ext:"zip"},
+      {name:"podcast-master.wav",gb:0.9,path:"Music\\Projects",ext:"wav"}
     ],
     system:{hiberfilGB:0,pagefileGB:4.8,driverStoreGB:11.3}
   };
@@ -550,6 +583,53 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     host.appendChild(kpiCard("Biggest folder", topFolder?topFolder.name:"—", topFolder?gb(topFolder.gb):"", "", true));
   }
 
+  // ---------- potential savings hero ----------
+  function savings(data){
+    var host=$("savings"); host.innerHTML="";
+    var c = arr(data.drives).filter(function(d){return d.id && d.id.toUpperCase().indexOf("C")===0;})[0] || arr(data.drives)[0];
+    var safeReclaim = arr(data.caches).filter(function(x){return x.safe;}).reduce(function(t,x){return t+(x.gb||0);},0);
+    if(!c || safeReclaim<=0.01){ host.classList.add("hidden"); return; }
+    host.classList.remove("hidden");
+    var needGB = Math.max(0, c.totalGB*0.15 - c.freeGB);
+    var pct = needGB>0 ? Math.min(100, Math.round(safeReclaim/needGB*100)) : 100;
+    var big=el("div","big"); big.innerHTML="You could reclaim about <b>~"+(Math.round(safeReclaim*10)/10)+" GB</b> right now";
+    host.appendChild(big);
+    var msg;
+    if(needGB<=0){ msg="Your "+c.id+" drive is already healthy — this is bonus space you can clear whenever you like."; }
+    else if(safeReclaim>=needGB){ msg="That's more than the ~"+Math.ceil(needGB)+" GB you need to get "+c.id+" back to healthy headroom (under ~85% full)."; }
+    else { msg="That covers "+pct+"% of the ~"+Math.ceil(needGB)+" GB you need for healthy headroom on "+c.id+". The ranked fixes can free the rest."; }
+    host.appendChild(el("div","msg",msg));
+    var bar=el("div","pbar"); var span=document.createElement("span"); span.style.width=pct+"%"; bar.appendChild(span); host.appendChild(bar);
+  }
+
+  // ---------- snapshot history / trend ----------
+  var HIST_KEY="diskDetoxHistory.v1";
+  function pushSnapshot(data){
+    if(data.demo) return;
+    var c = arr(data.drives).filter(function(d){return d.id && d.id.toUpperCase().indexOf("C")===0;})[0] || arr(data.drives)[0];
+    if(!c) return;
+    var hist=[]; try{ hist=JSON.parse(localStorage.getItem(HIST_KEY))||[]; }catch(e){ hist=[]; }
+    var stamp=data.generated||"";
+    if(hist.length && hist[hist.length-1].t===stamp) return;
+    hist.push({t:stamp, freeGB:c.freeGB, totalGB:c.totalGB});
+    if(hist.length>20) hist=hist.slice(hist.length-20);
+    try{ localStorage.setItem(HIST_KEY, JSON.stringify(hist)); }catch(e){}
+  }
+  function trend(data){
+    var host=$("trend"); host.innerHTML=""; host.className="trend hidden";
+    if(data.demo) return;
+    var hist=[]; try{ hist=JSON.parse(localStorage.getItem(HIST_KEY))||[]; }catch(e){ hist=[]; }
+    if(hist.length<2) return;
+    var cur=hist[hist.length-1], prev=hist[hist.length-2];
+    var delta=(cur.freeGB||0)-(prev.freeGB||0);
+    if(Math.abs(delta)<0.1) return;
+    host.classList.remove("hidden");
+    var when=""; try{ when=new Date(prev.t).toLocaleDateString(); }catch(e){}
+    host.appendChild(el("span","tdot"));
+    if(delta>0){ host.appendChild(el("span",null,"You've freed "+gb(delta)+" since your scan on "+when+". Nice work.")); }
+    else { host.className="trend down"; host.appendChild(el("span",null,"Your free space dropped "+gb(-delta)+" since "+when+".")); }
+  }
+
   // ---------- bar charts ----------
   function bars(containerId, items, unit){
     var c=$(containerId); c.innerHTML="";
@@ -572,13 +652,18 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     "User Temp":'Remove-Item "$env:TEMP\\*" -Recurse -Force -ErrorAction SilentlyContinue',
     "Windows Temp":'Remove-Item "C:\\Windows\\Temp\\*" -Recurse -Force -ErrorAction SilentlyContinue   # run as Admin',
     "Windows Update Cache":'net stop wuauserv; Remove-Item "C:\\Windows\\SoftwareDistribution\\Download\\*" -Recurse -Force -ErrorAction SilentlyContinue; net start wuauserv   # run as Admin',
+    "Chrome cache":'# Close Chrome first, then:\nRemove-Item "$env:LOCALAPPDATA\\Google\\Chrome\\User Data\\Default\\Cache\\*" -Recurse -Force -ErrorAction SilentlyContinue',
+    "Edge cache":'# Close Edge first, then:\nRemove-Item "$env:LOCALAPPDATA\\Microsoft\\Edge\\User Data\\Default\\Cache\\*" -Recurse -Force -ErrorAction SilentlyContinue',
     "Recycle Bin":'Clear-RecycleBin -Force -ErrorAction SilentlyContinue',
-    "Downloads":'explorer "$env:USERPROFILE\\Downloads"   # opens the folder so you can review before deleting'
+    "Downloads":'explorer "$env:USERPROFILE\\Downloads"   # opens the folder so you can review before deleting',
+    "Windows.old (previous Windows)":'cleanmgr   # tick "Previous Windows installation(s)" to remove your old Windows (frees the rollback copy)'
   };
   function cacheRows(data){
     var tb=$("cacheRows"); tb.innerHTML="";
     var total=0;
-    arr(data.caches).forEach(function(c){
+    var items=arr(data.caches).filter(function(c){return (c.gb||0)>0.005;});
+    if(!items.length){ var z=el("tr"); var zc=el("td","muted","Nothing clearable found right now."); zc.colSpan=4; z.appendChild(zc); tb.appendChild(z); }
+    items.forEach(function(c){
       if(c.safe) total+=c.gb||0;
       var tr=el("tr");
       tr.appendChild(el("td",null,c.name));
@@ -591,7 +676,21 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
       tr.appendChild(act);
       tb.appendChild(tr);
     });
-    $("reclaimSummary").textContent = "About "+gb(total)+" of safe-to-clear junk found (excludes Downloads, which is your files). Clearing it is reversible in practice — Windows rebuilds these automatically.";
+    $("reclaimSummary").textContent = "About "+gb(total)+" of safe-to-clear junk found (excludes Downloads and Windows.old — review those yourself). Clearing the safe items is reversible in practice; Windows and apps rebuild them automatically.";
+  }
+
+  // ---------- largest files ----------
+  function fileRows(data){
+    var files=arr(data.largestFiles).filter(function(f){return (f.gb||0)>0;});
+    $("filesPanel").classList.toggle("hidden", files.length===0);
+    var tb=$("fileRows"); tb.innerHTML="";
+    files.forEach(function(f){
+      var tr=el("tr");
+      tr.appendChild(el("td",null,f.name));
+      tr.appendChild(el("td","num",gb(f.gb||0)));
+      tr.appendChild(el("td","muted",f.path||"—"));
+      tb.appendChild(tr);
+    });
   }
 
   // ---------- programs (sortable + filterable) ----------
@@ -708,11 +807,15 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     window.__data=data;
     $("demoBanner").classList.toggle("hidden", !data.demo);
     dashboard(data);
+    savings(data);
+    pushSnapshot(data);
+    trend(data);
     var g=$("gauges"); g.innerHTML="";
     arr(data.drives).forEach(function(d){ g.appendChild(gauge(d)); });
     advisor(data);
     bars("folderBars", data.profileFolders);
     bars("appBars", data.appDataLocal);
+    fileRows(data);
     cacheRows(data);
     programRows(data);
     var games=arr(data.games);
