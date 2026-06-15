@@ -1,12 +1,14 @@
 # DiskDetox (diskdetox.com)
 
-A generic, shareable, **fully client-side** web tool that shows what's eating a Windows drive and gives ranked, copy-and-run fixes. Tagline: *Free up space on your Windows PC.* Built as a working v1 / reference spec — safe to rebuild or extend in Claude Code.
+A free, generic, shareable, **100% client-side** web tool that shows what's eating a Windows drive and gives ranked, copy-and-run fixes. Tagline: *Free up space on your Windows PC.* Single static HTML file, zero dependencies, **zero network calls** — deployed to Cloudflare Pages at [diskdetox.com](https://diskdetox.com).
 
 ## Files
 
-- `disk-health-dashboard.html` — the entire app in one file. No dependencies, no build step, no external requests.
-- `disk-health-scan.ps1` — the read-only PowerShell scan (also embedded inside the HTML's "Copy command" box, so users don't strictly need this file).
-- `README-disk-health.md` — this file.
+- `index.html` — the entire app in one file. No dependencies, no build step, no external requests. Self-contained brand: teal/green "detox" palette, inline data-URI favicon, inline SVG logo.
+- `diskdetox-scan.ps1` — the read-only PowerShell scan (also embedded inside the page's "Copy command" box, so users don't strictly need this file).
+- `favicon.svg` — canonical brand mark (also inlined into `index.html` as a data URI).
+- `og.html` → `og.png` — the social-share card. `og.html` is a build asset rendered once to `og.png` (1200×630), which `index.html` references for link previews. Neither is fetched by the live page.
+- `README.md` — this file.
 
 ## How it works (user flow)
 
@@ -27,15 +29,25 @@ A generic, shareable, **fully client-side** web tool that shows what's eating a 
 
 Drive totals/free space · top user-profile folders by size · biggest `AppData\Local` caches · largest installed programs (from the uninstall registry) · cleanable caches (Temp, Windows Temp, Windows Update cache, Downloads, Recycle Bin) · installed games in common launcher roots · system files (hiberfil, pagefile, DriverStore). It does **not** read file contents and skips cloud-only OneDrive files (so they aren't counted or slow the scan).
 
-## Deploying the public page (pick one)
+## Deploy (Cloudflare Pages)
 
-All three are free and serve a single static HTML file:
+Static — no build step. Build command: *(none)*. Output directory: the repo root. The `_headers` file ships strict security headers (a CSP that enforces the zero-network promise, plus `frame-ancestors 'none'`, `nosniff`, `no-referrer`). The same CSP is also inlined as a `<meta>` tag, so the guarantee holds even from `file://` or any other host.
 
-- **Cloudflare Pages** — drag-and-drop the HTML, or connect a repo. Pairs with a custom domain on Cloudflare.
-- **GitHub Pages** — commit the HTML to a repo, enable Pages in settings.
-- **Netlify** — drag-and-drop deploy.
+**Option A — Wrangler (from this repo):**
 
-Point your chosen domain at it. Because the app is one file, deployment is just "upload this HTML."
+    npx wrangler pages deploy . --project-name diskdetox
+
+Creates the Pages project on first run; redeploys on each subsequent run.
+
+**Option B — Dashboard:** Cloudflare → Workers & Pages → Create → Pages → connect the `diskdetox` repo (or drag-and-drop the folder). Framework preset **None**, build command empty, output directory `/`.
+
+**Custom domain:** register `diskdetox.com` via Cloudflare Registrar, then Pages project → **Custom domains** → add `diskdetox.com` (one click, since the zone is already on Cloudflare).
+
+### Regenerating the share image
+
+`og.png` (1200×630) is rendered from `og.html` with headless Edge — re-run after any brand/copy change, from the repo root in PowerShell:
+
+    & "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --headless=new --disable-gpu --hide-scrollbars --force-device-scale-factor=1 --window-size=1200,630 --screenshot="$PWD\og.png" "file:///$(($PWD.Path) -replace '\\','/')/og.html"
 
 ## JSON schema (`disk-health/v1`)
 
