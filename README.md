@@ -14,7 +14,7 @@ The deployed static site is the **`public/`** folder; the **`functions/`** folde
 - `public/_headers` — Cloudflare Pages response headers (CSP + `frame-ancestors`/`nosniff`/`no-referrer`).
 - `functions/_middleware.js` — Pages Function at the **repo root** (beside `public/`): 301-redirects `www.diskdetox.com` → apex.
 
-Dev / build files (**not** deployed): `og.html` (renders `public/og.png`), `deploy.ps1`, `.github/workflows/deploy.yml`, `README.md`, `CLAUDE.md`.
+Dev / build files (**not** deployed): `og.html` (renders `public/og.png`), `deploy.ps1`, `README.md`, `CLAUDE.md`.
 
 ## How it works (user flow)
 
@@ -39,18 +39,11 @@ Drive totals/free space · top user-profile folders by size · biggest `AppData\
 
 **Live:** https://diskdetox.com (apex; `www` 301-redirects here via the Pages Function) — also https://diskdetox.pages.dev. Project `diskdetox` (Direct Upload), production branch `main`. The site is the `public/` folder; static + one tiny Function, no build step. `_headers` ships strict security headers (a CSP that enforces the zero-network promise, plus `frame-ancestors 'none'`, `nosniff`, `no-referrer`); the same CSP is inlined as a `<meta>` tag, so the guarantee holds even from `file://`. Unknown paths get a real `404`.
 
-### Auto-deploy (git push)
-
-`.github/workflows/deploy.yml` deploys `public/` to the Pages project on every push to `main` (and via the **Run workflow** button). It needs two repo secrets — **Settings → Secrets and variables → Actions**:
-
-- `CLOUDFLARE_API_TOKEN` — **you create this** (it's a credential): dash.cloudflare.com → My Profile → API Tokens → Create → use the "Edit Cloudflare Workers" template, or a custom token with **Account › Cloudflare Pages › Edit**.
-- `CLOUDFLARE_ACCOUNT_ID` — `952e883090709e56962f92fc5fdf40f0` (set as a secret for convenience; not actually sensitive).
-
-### Manual deploy
+### Deploy
 
     .\deploy.ps1
 
-Runs `wrangler pages deploy public --project-name diskdetox --branch main`. Because the site lives in `public/`, the deploy is already clean — no dev files are uploaded.
+Runs `wrangler pages deploy public --project-name diskdetox --branch main` (uses the wrangler OAuth login already on this machine). Because the site lives in `public/`, the deploy is already clean — no dev files are uploaded. Source lives on GitHub (https://github.com/EvanBurgei/diskdetox): `git push` publishes the source, `.\deploy.ps1` ships the site to Cloudflare.
 
 ### Custom domain
 
