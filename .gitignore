@@ -13,3 +13,6 @@ disk-health.json
 # Node (only if tooling is ever added)
 node_modules/
 npm-debug.log*
+
+# Cloudflare / Wrangler local cache (per-machine; not for git)
+.wrangler/
