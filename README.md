@@ -4,15 +4,17 @@ A free, generic, shareable, **100% client-side** web tool that shows what's eati
 
 ## Files
 
-- `index.html` — the entire app in one file. No dependencies, no build step, no external requests. Self-contained brand: teal/green "detox" palette, inline data-URI favicon, inline SVG logo.
-- `404.html` — branded "page not found"; Cloudflare Pages serves it with a real `404` status for unknown paths.
-- `diskdetox-scan.ps1` — the read-only PowerShell scan (also embedded inside the page's "Copy command" box, so users don't strictly need this file).
-- `favicon.svg` — canonical brand mark (also inlined into `index.html` as a data URI).
-- `og.html` → `og.png` — the social-share card. `og.html` is a build asset rendered once to `og.png` (1200×630), which `index.html` references for link previews. Neither is fetched by the live page.
-- `_headers` — Cloudflare Pages response headers (CSP + `frame-ancestors`/`nosniff`/`no-referrer`).
-- `functions/_middleware.js` — Pages Function that 301-redirects `www.diskdetox.com` → apex.
-- `deploy.ps1` — clean deploy to Cloudflare Pages (stages public files only).
-- `README.md` / `CLAUDE.md` — docs (not deployed).
+The deployed site is the **`public/`** folder — Cloudflare Pages serves only this, so dev files never leak:
+
+- `public/index.html` — the entire app in one file. No dependencies, no build step, no external requests. Self-contained brand: teal/green "detox" palette, inline data-URI favicon, inline SVG logo.
+- `public/404.html` — branded "page not found"; Pages serves it with a real `404` status for unknown paths.
+- `public/favicon.svg` — canonical brand mark (also inlined into `index.html` as a data URI).
+- `public/og.png` — social-share card (1200×630), referenced by `index.html`'s OG meta. Fetched only by social scrapers, never by the live page.
+- `public/diskdetox-scan.ps1` — the read-only PowerShell scan (also embedded in the page's "Copy command" box, so users don't strictly need this file).
+- `public/_headers` — Cloudflare Pages response headers (CSP + `frame-ancestors`/`nosniff`/`no-referrer`).
+- `public/functions/_middleware.js` — Pages Function that 301-redirects `www.diskdetox.com` → apex.
+
+Dev / build files (**not** deployed): `og.html` (renders `public/og.png`), `deploy.ps1`, `.github/workflows/deploy.yml`, `README.md`, `CLAUDE.md`.
 
 ## How it works (user flow)
 
@@ -35,25 +37,30 @@ Drive totals/free space · top user-profile folders by size · biggest `AppData\
 
 ## Deploy (Cloudflare Pages)
 
-**Live:** https://diskdetox.com (apex; `www` 301-redirects here via `functions/_middleware.js`) — also at https://diskdetox.pages.dev. Project `diskdetox`, production branch `main`. Static + one tiny Pages Function, no build step. The `_headers` file ships strict security headers (a CSP that enforces the zero-network promise, plus `frame-ancestors 'none'`, `nosniff`, `no-referrer`); the same CSP is inlined as a `<meta>` tag, so the guarantee holds even from `file://`. Unknown paths get a real `404` (`404.html`).
+**Live:** https://diskdetox.com (apex; `www` 301-redirects here via the Pages Function) — also https://diskdetox.pages.dev. Project `diskdetox` (Direct Upload), production branch `main`. The site is the `public/` folder; static + one tiny Function, no build step. `_headers` ships strict security headers (a CSP that enforces the zero-network promise, plus `frame-ancestors 'none'`, `nosniff`, `no-referrer`); the same CSP is inlined as a `<meta>` tag, so the guarantee holds even from `file://`. Unknown paths get a real `404`.
 
-### Redeploy
+### Auto-deploy (git push)
+
+`.github/workflows/deploy.yml` deploys `public/` to the Pages project on every push to `main` (and via the **Run workflow** button). It needs two repo secrets — **Settings → Secrets and variables → Actions**:
+
+- `CLOUDFLARE_API_TOKEN` — **you create this** (it's a credential): dash.cloudflare.com → My Profile → API Tokens → Create → use the "Edit Cloudflare Workers" template, or a custom token with **Account › Cloudflare Pages › Edit**.
+- `CLOUDFLARE_ACCOUNT_ID` — `952e883090709e56962f92fc5fdf40f0` (set as a secret for convenience; not actually sensitive).
+
+### Manual deploy
 
     .\deploy.ps1
 
-`deploy.ps1` stages a temp folder with **only the public files** (`index.html`, `404.html`, `og.png`, `favicon.svg`, `diskdetox-scan.ps1`, `_headers`, plus the `functions/` dir) and runs `wrangler pages deploy`.
-
-> ⚠️ Don't run `wrangler pages deploy .` directly, and don't point a git-connected Pages build at the repo root — Cloudflare Pages uploads **every** file and ignores `.gitignore`/`.assetsignore`, so it would publish `CLAUDE.md` and `README.md` too. `deploy.ps1` is the clean path. (To later use git-integration auto-deploys, move the public files into a `public/` subdir and set that as the output directory.)
+Runs `wrangler pages deploy public --project-name diskdetox --branch main`. Because the site lives in `public/`, the deploy is already clean — no dev files are uploaded.
 
 ### Custom domain
 
-**Done** — `diskdetox.com` and `www.diskdetox.com` are attached to the Pages project (both Active, SSL on). `www` 301-redirects to the apex via `functions/_middleware.js`.
+**Done** — `diskdetox.com` and `www.diskdetox.com` are attached to the Pages project (both Active, SSL on). `www` 301-redirects to the apex via `public/functions/_middleware.js`.
 
 ### Regenerating the share image
 
-`og.png` (1200×630) is rendered from `og.html` with headless Edge — re-run after any brand/copy change, from the repo root in PowerShell:
+`public/og.png` (1200×630) is rendered from `og.html` with headless Edge — re-run after any brand/copy change, from the repo root in PowerShell:
 
-    & "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --headless=new --disable-gpu --hide-scrollbars --force-device-scale-factor=1 --window-size=1200,630 --screenshot="$PWD\og.png" "file:///$(($PWD.Path) -replace '\\','/')/og.html"
+    & "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --headless=new --disable-gpu --hide-scrollbars --force-device-scale-factor=1 --window-size=1200,630 --screenshot="$PWD\public\og.png" "file:///$(($PWD.Path) -replace '\\','/')/og.html"
 
 ## JSON schema (`disk-health/v1`)
 
