@@ -5,10 +5,14 @@ A free, generic, shareable, **100% client-side** web tool that shows what's eati
 ## Files
 
 - `index.html` — the entire app in one file. No dependencies, no build step, no external requests. Self-contained brand: teal/green "detox" palette, inline data-URI favicon, inline SVG logo.
+- `404.html` — branded "page not found"; Cloudflare Pages serves it with a real `404` status for unknown paths.
 - `diskdetox-scan.ps1` — the read-only PowerShell scan (also embedded inside the page's "Copy command" box, so users don't strictly need this file).
 - `favicon.svg` — canonical brand mark (also inlined into `index.html` as a data URI).
 - `og.html` → `og.png` — the social-share card. `og.html` is a build asset rendered once to `og.png` (1200×630), which `index.html` references for link previews. Neither is fetched by the live page.
-- `README.md` — this file.
+- `_headers` — Cloudflare Pages response headers (CSP + `frame-ancestors`/`nosniff`/`no-referrer`).
+- `functions/_middleware.js` — Pages Function that 301-redirects `www.diskdetox.com` → apex.
+- `deploy.ps1` — clean deploy to Cloudflare Pages (stages public files only).
+- `README.md` / `CLAUDE.md` — docs (not deployed).
 
 ## How it works (user flow)
 
@@ -31,19 +35,19 @@ Drive totals/free space · top user-profile folders by size · biggest `AppData\
 
 ## Deploy (Cloudflare Pages)
 
-**Live:** https://diskdetox.pages.dev — project `diskdetox`, production branch `main`. Static, no build step. The `_headers` file ships strict security headers (a CSP that enforces the zero-network promise, plus `frame-ancestors 'none'`, `nosniff`, `no-referrer`); the same CSP is inlined as a `<meta>` tag, so the guarantee holds even from `file://`.
+**Live:** https://diskdetox.com (apex; `www` 301-redirects here via `functions/_middleware.js`) — also at https://diskdetox.pages.dev. Project `diskdetox`, production branch `main`. Static + one tiny Pages Function, no build step. The `_headers` file ships strict security headers (a CSP that enforces the zero-network promise, plus `frame-ancestors 'none'`, `nosniff`, `no-referrer`); the same CSP is inlined as a `<meta>` tag, so the guarantee holds even from `file://`. Unknown paths get a real `404` (`404.html`).
 
 ### Redeploy
 
     .\deploy.ps1
 
-`deploy.ps1` stages a temp folder with **only the public files** (`index.html`, `og.png`, `favicon.svg`, `diskdetox-scan.ps1`, `_headers`) and runs `wrangler pages deploy`.
+`deploy.ps1` stages a temp folder with **only the public files** (`index.html`, `404.html`, `og.png`, `favicon.svg`, `diskdetox-scan.ps1`, `_headers`, plus the `functions/` dir) and runs `wrangler pages deploy`.
 
 > ⚠️ Don't run `wrangler pages deploy .` directly, and don't point a git-connected Pages build at the repo root — Cloudflare Pages uploads **every** file and ignores `.gitignore`/`.assetsignore`, so it would publish `CLAUDE.md` and `README.md` too. `deploy.ps1` is the clean path. (To later use git-integration auto-deploys, move the public files into a `public/` subdir and set that as the output directory.)
 
 ### Custom domain
 
-Register `diskdetox.com` via Cloudflare Registrar, then Pages project → **Custom domains** → add `diskdetox.com` (one click, since the zone is already on Cloudflare).
+**Done** — `diskdetox.com` and `www.diskdetox.com` are attached to the Pages project (both Active, SSL on). `www` 301-redirects to the apex via `functions/_middleware.js`.
 
 ### Regenerating the share image
 

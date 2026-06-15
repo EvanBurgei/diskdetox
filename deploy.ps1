@@ -9,12 +9,13 @@
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
 
-$public = 'index.html', 'og.png', 'favicon.svg', 'diskdetox-scan.ps1', '_headers'
+$public = 'index.html', '404.html', 'og.png', 'favicon.svg', 'diskdetox-scan.ps1', '_headers'
 $stage  = Join-Path $env:TEMP 'diskdetox-pub'
 
 Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Path $stage | Out-Null
 Copy-Item -Path $public -Destination $stage
+Copy-Item -Path 'functions' -Destination $stage -Recurse   # Pages Function: www -> apex redirect
 
 npx wrangler pages deploy $stage --project-name diskdetox --branch main --commit-dirty=true
 
