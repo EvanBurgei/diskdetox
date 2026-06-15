@@ -31,17 +31,19 @@ Drive totals/free space · top user-profile folders by size · biggest `AppData\
 
 ## Deploy (Cloudflare Pages)
 
-Static — no build step. Build command: *(none)*. Output directory: the repo root. The `_headers` file ships strict security headers (a CSP that enforces the zero-network promise, plus `frame-ancestors 'none'`, `nosniff`, `no-referrer`). The same CSP is also inlined as a `<meta>` tag, so the guarantee holds even from `file://` or any other host.
+**Live:** https://diskdetox.pages.dev — project `diskdetox`, production branch `main`. Static, no build step. The `_headers` file ships strict security headers (a CSP that enforces the zero-network promise, plus `frame-ancestors 'none'`, `nosniff`, `no-referrer`); the same CSP is inlined as a `<meta>` tag, so the guarantee holds even from `file://`.
 
-**Option A — Wrangler (from this repo):**
+### Redeploy
 
-    npx wrangler pages deploy . --project-name diskdetox
+    .\deploy.ps1
 
-Creates the Pages project on first run; redeploys on each subsequent run.
+`deploy.ps1` stages a temp folder with **only the public files** (`index.html`, `og.png`, `favicon.svg`, `diskdetox-scan.ps1`, `_headers`) and runs `wrangler pages deploy`.
 
-**Option B — Dashboard:** Cloudflare → Workers & Pages → Create → Pages → connect the `diskdetox` repo (or drag-and-drop the folder). Framework preset **None**, build command empty, output directory `/`.
+> ⚠️ Don't run `wrangler pages deploy .` directly, and don't point a git-connected Pages build at the repo root — Cloudflare Pages uploads **every** file and ignores `.gitignore`/`.assetsignore`, so it would publish `CLAUDE.md` and `README.md` too. `deploy.ps1` is the clean path. (To later use git-integration auto-deploys, move the public files into a `public/` subdir and set that as the output directory.)
 
-**Custom domain:** register `diskdetox.com` via Cloudflare Registrar, then Pages project → **Custom domains** → add `diskdetox.com` (one click, since the zone is already on Cloudflare).
+### Custom domain
+
+Register `diskdetox.com` via Cloudflare Registrar, then Pages project → **Custom domains** → add `diskdetox.com` (one click, since the zone is already on Cloudflare).
 
 ### Regenerating the share image
 

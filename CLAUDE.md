@@ -19,7 +19,7 @@ Free, 100% client-side Windows disk-cleanup web tool. Single static HTML file, z
 - `README.md` — usage, security model, deploy notes, JSON schema.
 
 ## Deploy
-Static — no build step. Cloudflare Pages with project root = repo. Custom domain `diskdetox.com` via Cloudflare Registrar → one-click attach to the Pages project. See `README.md` for the exact steps.
+Static — no build step. **Run `.\deploy.ps1`** — it stages only the public files and runs `wrangler pages deploy` (Pages ignores `.gitignore`/`.assetsignore`, so deploying the repo root directly would publish `CLAUDE.md`/`README.md`). Live at https://diskdetox.pages.dev (Cloudflare Pages project `diskdetox`). Custom domain `diskdetox.com`: Cloudflare Registrar → Pages → Custom domains → add (one click, zone already on Cloudflare). See `README.md`.
 
 ## JSON schema: `disk-health/v1`
 `{ schema, generated, machine, redacted, drives[{id,totalGB,freeGB,pctFree}], profileFolders[{name,gb}], appDataLocal[{name,gb}], programs[{name,mb}], caches[{name,gb,path,safe}], games[{name,gb,path}], system{hiberfilGB,pagefileGB,driverStoreGB} }`
