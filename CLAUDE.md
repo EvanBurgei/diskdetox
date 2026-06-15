@@ -20,11 +20,11 @@ Deployed site = the **`public/`** folder (Pages serves only this; dev files stay
 - `public/og.png` — social-share card (referenced by OG meta; scraper-fetched only).
 - `public/diskdetox-scan.ps1` — the read-only scan (also embedded in the page's "Copy command" box).
 - `public/_headers` — Pages response headers (CSP + frame-ancestors/nosniff/no-referrer).
-- `public/functions/_middleware.js` — Pages Function: 301 `www` → apex.
+- `functions/_middleware.js` — Pages Function at the **repo root** (beside `public/`; `wrangler pages deploy public` resolves `functions/` at the project root, NOT inside the output dir — don't nest it in `public/`): 301 `www` → apex.
 - Root (not deployed): `og.html` (renders `public/og.png`), `deploy.ps1`, `.github/workflows/deploy.yml`, `README.md`, `CLAUDE.md`.
 
 ## Deploy
-Site = `public/`; static + one tiny Pages Function, no build step. **LIVE at https://diskdetox.com** (+ `www` 301→apex via `public/functions/_middleware.js`; also diskdetox.pages.dev). Cloudflare Pages project `diskdetox` (Direct Upload), both custom domains Active/SSL. Unknown paths → real 404.
+Site = `public/`; static + one tiny Pages Function (`functions/` at repo root), no build step. **LIVE at https://diskdetox.com** (+ `www` 301→apex via `functions/_middleware.js`; also diskdetox.pages.dev). Cloudflare Pages project `diskdetox` (Direct Upload), both custom domains Active/SSL. Unknown paths → real 404.
 - **Auto-deploy:** `.github/workflows/deploy.yml` deploys `public/` on push to `main`. Needs repo secrets `CLOUDFLARE_API_TOKEN` (Pages:Edit) + `CLOUDFLARE_ACCOUNT_ID`.
 - **Manual:** `.\deploy.ps1` → `wrangler pages deploy public …` (already clean since the site is `public/`).
 - GitHub: https://github.com/EvanBurgei/diskdetox (public). See `README.md`.

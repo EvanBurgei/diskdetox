@@ -4,7 +4,7 @@ A free, generic, shareable, **100% client-side** web tool that shows what's eati
 
 ## Files
 
-The deployed site is the **`public/`** folder — Cloudflare Pages serves only this, so dev files never leak:
+The deployed static site is the **`public/`** folder; the **`functions/`** folder (one Pages Function) sits at the repo root, *beside* `public/`. `wrangler pages deploy public` resolves `functions/` relative to the project root — **not** inside the output dir — so the Function must live at the root, not in `public/`.
 
 - `public/index.html` — the entire app in one file. No dependencies, no build step, no external requests. Self-contained brand: teal/green "detox" palette, inline data-URI favicon, inline SVG logo.
 - `public/404.html` — branded "page not found"; Pages serves it with a real `404` status for unknown paths.
@@ -12,7 +12,7 @@ The deployed site is the **`public/`** folder — Cloudflare Pages serves only t
 - `public/og.png` — social-share card (1200×630), referenced by `index.html`'s OG meta. Fetched only by social scrapers, never by the live page.
 - `public/diskdetox-scan.ps1` — the read-only PowerShell scan (also embedded in the page's "Copy command" box, so users don't strictly need this file).
 - `public/_headers` — Cloudflare Pages response headers (CSP + `frame-ancestors`/`nosniff`/`no-referrer`).
-- `public/functions/_middleware.js` — Pages Function that 301-redirects `www.diskdetox.com` → apex.
+- `functions/_middleware.js` — Pages Function at the **repo root** (beside `public/`): 301-redirects `www.diskdetox.com` → apex.
 
 Dev / build files (**not** deployed): `og.html` (renders `public/og.png`), `deploy.ps1`, `.github/workflows/deploy.yml`, `README.md`, `CLAUDE.md`.
 
@@ -54,7 +54,7 @@ Runs `wrangler pages deploy public --project-name diskdetox --branch main`. Beca
 
 ### Custom domain
 
-**Done** — `diskdetox.com` and `www.diskdetox.com` are attached to the Pages project (both Active, SSL on). `www` 301-redirects to the apex via `public/functions/_middleware.js`.
+**Done** — `diskdetox.com` and `www.diskdetox.com` are attached to the Pages project (both Active, SSL on). `www` 301-redirects to the apex via `functions/_middleware.js`.
 
 ### Regenerating the share image
 
