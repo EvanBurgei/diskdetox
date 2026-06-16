@@ -143,9 +143,9 @@
 
   /* chips / badges */
   .badge{display:inline-block; padding:2px 8px; border-radius:999px; font-size:11.5px; font-weight:700}
-  .badge.safe{background:color-mix(in srgb, var(--green) 16%, transparent); color:var(--green)}
+  .badge.safe{background:color-mix(in srgb, var(--green) 16%, transparent); color:color-mix(in srgb, var(--green) 60%, var(--txt))}
   .badge.review{background:color-mix(in srgb, var(--amber) 18%, transparent); color:var(--amber)}
-  .badge.adv{background:color-mix(in srgb, var(--red) 16%, transparent); color:var(--red)}
+  .badge.adv{background:color-mix(in srgb, var(--red) 16%, transparent); color:color-mix(in srgb, var(--red) 60%, var(--txt))}
 
   /* fixes */
   .fix{border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin:0 0 12px; background:var(--panel2)}
@@ -267,6 +267,7 @@
     <button class="tab" role="tab" id="tab-reclaim" data-tab="reclaim" aria-controls="panel-reclaim" aria-selected="false" tabindex="-1">Reclaim</button>
     <button class="tab" role="tab" id="tab-programs" data-tab="programs" aria-controls="panel-programs" aria-selected="false" tabindex="-1">Programs</button>
     <button class="tab" role="tab" id="tab-system" data-tab="system" aria-controls="panel-system" aria-selected="false" tabindex="-1">System</button>
+    <button class="tab" role="tab" id="tab-startup" data-tab="startup" aria-controls="panel-startup" aria-selected="false" tabindex="-1">Startup</button>
     <button class="tab" role="tab" id="tab-scan" data-tab="scan" aria-controls="panel-scan" aria-selected="false" tabindex="-1">Scan</button>
     <button class="tab" role="tab" id="tab-learn" data-tab="learn" aria-controls="panel-learn" aria-selected="false" tabindex="-1">Learn</button>
   </div>
@@ -364,6 +365,43 @@
     </div>
   </section>
 
+  <!-- STARTUP & SPEED -->
+  <section class="tabpanel hidden" id="panel-startup" role="tabpanel" aria-labelledby="tab-startup" data-panel="startup">
+    <div class="panel">
+      <div class="panelhead">
+        <h2>What starts automatically</h2>
+        <div class="btn-row" id="startupActions"></div>
+      </div>
+      <p class="muted" id="startupSummary" style="font-size:13.5px"></p>
+      <table>
+        <thead><tr><th>Item</th><th>Starts from</th><th class="num">Using now</th><th>Note</th></tr></thead>
+        <tbody id="startupRows"></tbody>
+      </table>
+      <p class="muted" style="font-size:12.5px; margin-top:10px">Turning a startup item off is reversible: it stops the app launching at boot, it doesn't uninstall anything. The safest place to toggle these is the Startup settings button above.</p>
+    </div>
+
+    <div class="panel hidden" id="bloatPanel">
+      <h2>Often preinstalled</h2>
+      <p class="muted" style="font-size:13px">These match names that are <em>commonly</em> trialware or manufacturer extras a lot of people remove. It's a heads-up, not a verdict: keep anything you actually use. Your call.</p>
+      <div id="bloatRows"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Heaviest right now</h2>
+      <p class="muted" style="font-size:13px">The programs using the most memory at the moment your scan ran. Closing one frees its memory until you open it again. Core Windows processes are left out, since those keep your PC running.</p>
+      <table>
+        <thead><tr><th>Program</th><th class="num">Memory</th><th>Note</th></tr></thead>
+        <tbody id="processRows"></tbody>
+      </table>
+    </div>
+
+    <div class="panel">
+      <h2>Speed steps (ranked)</h2>
+      <p class="muted" style="font-size:13px">Each one is copy-and-run in PowerShell or a one-click Windows screen. <span class="badge safe">Safe</span> = a reversible toggle. <span class="badge review">Review</span> = check before you run it. <span class="badge adv">Advanced</span> = needs Admin.</p>
+      <div id="speedFixes"></div>
+    </div>
+  </section>
+
   <!-- SCAN -->
   <section class="tabpanel hidden" id="panel-scan" role="tabpanel" aria-labelledby="tab-scan" data-panel="scan">
     <div class="panel">
@@ -443,6 +481,7 @@
 if (-not $PSBoundParameters.ContainsKey('Redact')) { $Redact = __REDACT__ }
 $ErrorActionPreference = 'SilentlyContinue'
 function FolderGB($p){ if(Test-Path $p){ $s=(Get-ChildItem $p -Recurse -File -Force -Attributes !Offline | Measure-Object Length -Sum).Sum; if($null -eq $s){0}else{[math]::Round($s/1GB,2)} } else {0} }
+function ExeName($cmd){ if(-not $cmd){return $null} $c=([string]$cmd).Trim(); if($c.StartsWith('"')){ $c=$c.Substring(1); $i=$c.IndexOf('"'); if($i -ge 0){$c=$c.Substring(0,$i)} } else { $sp=$c.IndexOf(' '); if($sp -gt 0){$c=$c.Substring(0,$sp)} } try{([System.IO.Path]::GetFileName($c)).ToLowerInvariant()}catch{$null} }
 $drives = Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" | ForEach-Object { [PSCustomObject]@{ id=$_.DeviceID; totalGB=[math]::Round($_.Size/1GB,1); freeGB=[math]::Round($_.FreeSpace/1GB,1); pctFree=[math]::Round($_.FreeSpace/$_.Size*100,0) } }
 $profileFolders = Get-ChildItem $env:USERPROFILE -Directory -Force | ForEach-Object { [PSCustomObject]@{ name=$_.Name; gb=(FolderGB $_.FullName) } } | Sort-Object gb -Descending | Select-Object -First 15
 $appLocal = Get-ChildItem $env:LOCALAPPDATA -Directory -Force | ForEach-Object { [PSCustomObject]@{ name=$_.Name; gb=(FolderGB $_.FullName) } } | Sort-Object gb -Descending | Select-Object -First 12
@@ -457,9 +496,17 @@ $largestFiles = & { Get-ChildItem $env:USERPROFILE -File -Force -Attributes !Off
 $skipRoot=@('$Recycle.Bin','System Volume Information','Config.Msi','Recovery','$WinREAgent','$SysReset')
 $driveFolders = foreach($d in $drives){ $folders = Get-ChildItem ($d.id + '\') -Directory -Force -ErrorAction SilentlyContinue | Where-Object { $skipRoot -notcontains $_.Name -and -not $_.Name.StartsWith('$') } | ForEach-Object { [PSCustomObject]@{ name=$_.Name; gb=(FolderGB $_.FullName) } } | Sort-Object gb -Descending | Select-Object -First 12; [PSCustomObject]@{ drive=$d.id; folders=@($folders) } }
 $system=[PSCustomObject]@{ hiberfilGB=[math]::Round(((Get-Item C:\hiberfil.sys -Force).Length)/1GB,2); pagefileGB=[math]::Round(((Get-Item C:\pagefile.sys -Force).Length)/1GB,2); driverStoreGB=(FolderGB 'C:\Windows\System32\DriverStore\FileRepository') }
+$startup=@()
+$runKeys=@(@{src='Run (user)';path='HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'},@{src='Run (system)';path='HKLM:\Software\Microsoft\Windows\CurrentVersion\Run'},@{src='Run (system)';path='HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Run'})
+foreach($rk in $runKeys){ if(Test-Path $rk.path){ $key=Get-Item $rk.path; foreach($n in $key.Property){ $val=[string]$key.GetValue($n); $startup+=[PSCustomObject]@{name=$n;source=$rk.src;command=$val;exe=(ExeName $val)} } } }
+$sfs=@("$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup","$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Startup")
+foreach($sf in $sfs){ if(Test-Path $sf){ Get-ChildItem $sf -File -Force | Where-Object {$_.Name -ne 'desktop.ini'} | ForEach-Object { $startup+=[PSCustomObject]@{name=$_.BaseName;source='Startup folder';command=$_.FullName;exe=(ExeName $_.Name)} } } }
+Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.State -ne 'Disabled' -and $_.TaskPath -notlike '\Microsoft\*' -and (@($_.Triggers)|Where-Object {$_.CimClass.CimClassName -eq 'MSFT_TaskLogonTrigger'}) } | ForEach-Object { $act=[string](@($_.Actions)|Select-Object -First 1).Execute; $startup+=[PSCustomObject]@{name=$_.TaskName;source='Scheduled task';command=$act;exe=(ExeName $act);taskPath=$_.TaskPath} }
+Get-CimInstance Win32_Service -Filter "StartMode='Auto'" | Where-Object { $_.PathName -and $_.PathName -notmatch 'C:\\Windows\\' } | ForEach-Object { $startup+=[PSCustomObject]@{name=$_.DisplayName;source='Service';command=$_.PathName;exe=(ExeName $_.PathName);svc=$_.Name} }
+$processes = Get-Process | Group-Object ProcessName | ForEach-Object { [PSCustomObject]@{ name=$_.Name; ramMB=[math]::Round((($_.Group | Measure-Object WorkingSet64 -Sum).Sum)/1MB,0); count=$_.Count } } | Sort-Object ramMB -Descending | Select-Object -First 20
 $machine = if($Redact){$null}else{$env:COMPUTERNAME}
-if($Redact){ foreach($c in $caches){$c.path=$null}; foreach($g in $games){$g.path=$null}; foreach($f in $largestFiles){ $f.path=$null; $f.name= if($f.ext){"(a .$($f.ext) file)"}else{"(a large file)"} } }
-$out=[PSCustomObject]@{ schema='disk-health/v1'; generated=(Get-Date).ToString('s'); machine=$machine; redacted=[bool]$Redact; drives=@($drives); profileFolders=@($profileFolders); appDataLocal=@($appLocal); programs=@($programs); caches=@($caches); games=@($games); largestFiles=@($largestFiles); driveFolders=@($driveFolders); system=$system }
+if($Redact){ foreach($c in $caches){$c.path=$null}; foreach($g in $games){$g.path=$null}; foreach($s in $startup){$s.command=$null}; foreach($f in $largestFiles){ $f.path=$null; $f.name= if($f.ext){"(a .$($f.ext) file)"}else{"(a large file)"} } }
+$out=[PSCustomObject]@{ schema='disk-health/v1'; generated=(Get-Date).ToString('s'); machine=$machine; redacted=[bool]$Redact; drives=@($drives); profileFolders=@($profileFolders); appDataLocal=@($appLocal); programs=@($programs); caches=@($caches); games=@($games); largestFiles=@($largestFiles); driveFolders=@($driveFolders); startup=@($startup); processes=@($processes); system=$system }
 $json=$out | ConvertTo-Json -Depth 6
 $dest="$env:USERPROFILE\Desktop\disk-health.json"
 $json | Out-File -FilePath $dest -Encoding utf8
@@ -515,6 +562,30 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     driveFolders:[
       {drive:"C:",folders:[{name:"Users",gb:96.2},{name:"Windows",gb:31.4},{name:"Program Files",gb:18.7},{name:"Program Files (x86)",gb:12.3},{name:"ProgramData",gb:8.1}]},
       {drive:"D:",folders:[{name:"Games",gb:248.6},{name:"Media",gb:103.2},{name:"Backups",gb:54.9},{name:"Projects",gb:12.4}]}
+    ],
+    startup:[
+      {name:"OneDrive",source:"Run (user)",exe:"onedrive.exe"},
+      {name:"Spotify",source:"Run (user)",exe:"spotify.exe"},
+      {name:"Steam",source:"Run (user)",exe:"steam.exe"},
+      {name:"Microsoft Teams",source:"Run (user)",exe:"teams.exe"},
+      {name:"Discord",source:"Startup folder",exe:"discord.exe"},
+      {name:"Adobe Acrobat Update",source:"Scheduled task",exe:"armsvc.exe",taskPath:"\\"},
+      {name:"Google Update",source:"Scheduled task",exe:"googleupdate.exe",taskPath:"\\"},
+      {name:"McAfee WebAdvisor",source:"Run (system)",exe:"mcafeewebadvisor.exe"},
+      {name:"NVIDIA Display Container",source:"Service",exe:"nvdisplay.container.exe",svc:"NVDisplay.ContainerLocalSystem"},
+      {name:"Razer Synapse Service",source:"Service",exe:"razersynapse.exe",svc:"Razer Synapse Service"}
+    ],
+    processes:[
+      {name:"chrome",ramMB:2340,count:24},
+      {name:"svchost",ramMB:882,count:94},
+      {name:"Teams",ramMB:880,count:6},
+      {name:"Code",ramMB:760,count:9},
+      {name:"Discord",ramMB:520,count:4},
+      {name:"steamwebhelper",ramMB:446,count:8},
+      {name:"Spotify",ramMB:430,count:5},
+      {name:"MsMpEng",ramMB:325,count:1},
+      {name:"explorer",ramMB:310,count:1},
+      {name:"OneDrive",ramMB:180,count:1}
     ],
     system:{hiberfilGB:0,pagefileGB:4.8,driverStoreGB:11.3}
   };
@@ -920,6 +991,137 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     window.scrollTo({top:0,behavior:"smooth"});
   }
 
+  // ---------- startup & speed ----------
+  // Names that are COMMONLY preinstalled trialware / extras people remove. A heads-up, never a verdict.
+  var BLOAT_HINTS = ["mcafee","norton","wildtangent","booking.com","candy crush","expressvpn","express vpn",
+    "hp jumpstart","hp support assistant","dell customer connect","driver booster","iobit","pc app store",
+    "webcompanion","ask toolbar","coupon","mywaylink","spigot","amazon assistant","wps office","piriform",
+    "xbox game bar trial","pricegong","myway"];
+  // Core Windows processes: kept out of "heaviest" since they aren't things a person should close.
+  var SYS_PROC = ["svchost","conhost","memory compression","registry","system","system idle process","dwm",
+    "csrss","wininit","winlogon","services","lsass","smss","fontdrvhost","wudfhost","taskhostw","sihost",
+    "ctfmon","runtimebroker","searchhost","startmenuexperiencehost","shellexperiencehost","dllhost","spoolsv",
+    "explorer","searchindexer","audiodg","lsaiso","secure system","textinputhost","applicationframehost","wmiprvse"];
+  function isBloat(name){ var n=String(name||"").toLowerCase(); return BLOAT_HINTS.some(function(h){ return n.indexOf(h)>-1; }); }
+  function exeBase(exe){ return exe ? String(exe).toLowerCase().replace(/\.exe$/,"") : ""; }
+  function srcRisk(src){ return (src==="Run (system)"||src==="Service") ? "adv" : "review"; }
+  function riskLabel(kind){ return kind==="adv"?"Advanced":kind==="safe"?"Safe":"Review"; }
+  function badgeEl(kind,label){ return el("span","badge "+kind,label||riskLabel(kind)); }
+
+  function renderStartup(data){
+    var startup = arr(data.startup);
+    var procs = arr(data.processes);
+    var procRam = {};
+    procs.forEach(function(p){ var k=String(p.name||"").toLowerCase(); procRam[k]=(procRam[k]||0)+(p.ramMB||0); });
+    var startExe = {};
+    startup.forEach(function(s){ var b=exeBase(s.exe); if(b) startExe[b]=true; });
+
+    // action buttons (safest route: Windows' own screens)
+    var actions=$("startupActions"); actions.innerHTML="";
+    function actBtn(label,cmd){ var b=el("button","btn ghost",label); b.style.padding="6px 12px"; b.style.fontSize="12.5px"; b.addEventListener("click",function(){copyText(cmd);}); return b; }
+    actions.appendChild(actBtn("Copy: open Startup settings","start ms-settings:startupapps"));
+    actions.appendChild(actBtn("Copy: open Task Manager","taskmgr"));
+
+    // startup table
+    var tb=$("startupRows"); tb.innerHTML="";
+    var rows = startup.map(function(s){
+      var key=exeBase(s.exe);
+      return { s:s, ram:(key && procRam[key]!=null ? procRam[key] : null), bloat:isBloat(s.name), isSvc:(s.source==="Service") };
+    });
+    rows.sort(function(a,b){
+      if(a.isSvc!==b.isSvc) return a.isSvc?1:-1;       // services last
+      if((b.ram||0)!==(a.ram||0)) return (b.ram||0)-(a.ram||0); // running/heavy first
+      return String(a.s.name).localeCompare(String(b.s.name));
+    });
+    if(!rows.length){ var z=el("tr"); var zc=el("td","muted","No startup items in this data. (Scans from before this feature won't have them — re-run the scan.)"); zc.colSpan=4; z.appendChild(zc); tb.appendChild(z); }
+    rows.forEach(function(r){
+      var tr=el("tr");
+      tr.appendChild(el("td",null,r.s.name));
+      tr.appendChild(el("td","muted",r.s.source||"·"));
+      tr.appendChild(el("td","num", r.ram!=null ? (r.ram.toLocaleString()+" MB") : "—"));
+      var note=el("td");
+      note.appendChild(badgeEl(srcRisk(r.s.source)));
+      if(r.bloat){ var b2=badgeEl("review","often removed"); b2.style.marginLeft="6px"; note.appendChild(b2); }
+      tr.appendChild(note);
+      tb.appendChild(tr);
+    });
+    var nSvc=rows.filter(function(r){return r.isSvc;}).length, nApp=rows.length-nSvc;
+    $("startupSummary").textContent = rows.length
+      ? (rows.length+" things launch automatically ("+nApp+" apps and tasks, "+nSvc+" background services). Fewer startup items means a quicker, lighter boot. Anything running now shows the memory it's using.")
+      : "";
+
+    // "often preinstalled" list (startup + installed programs)
+    var bloatHits=[];
+    startup.forEach(function(s){ if(isBloat(s.name) && bloatHits.indexOf(s.name)<0) bloatHits.push(s.name); });
+    arr(data.programs).forEach(function(p){ if(isBloat(p.name) && bloatHits.indexOf(p.name)<0) bloatHits.push(p.name); });
+    var br=$("bloatRows"); br.innerHTML="";
+    $("bloatPanel").classList.toggle("hidden", bloatHits.length===0);
+    bloatHits.forEach(function(nm){
+      var card=el("div","fix"), head=el("div","head");
+      head.appendChild(el("span","t",nm));
+      head.appendChild(badgeEl("review","often removed"));
+      card.appendChild(head);
+      card.appendChild(el("div","why","Commonly preinstalled trialware or an extra a lot of people don't use. If you don't use it, removing it is fine. If you do, keep it."));
+      br.appendChild(card);
+    });
+
+    // heaviest running programs (system processes filtered out)
+    var ptb=$("processRows"); ptb.innerHTML="";
+    var apps = procs.filter(function(p){ return SYS_PROC.indexOf(String(p.name||"").toLowerCase())<0 && (p.ramMB||0)>0; }).slice(0,12);
+    if(!apps.length){ var z2=el("tr"); var zc2=el("td","muted","No process data in this scan."); zc2.colSpan=3; z2.appendChild(zc2); ptb.appendChild(z2); }
+    apps.forEach(function(p){
+      var tr=el("tr");
+      tr.appendChild(el("td",null,p.name+((p.count||1)>1?(" ("+p.count+" processes)"):"")));
+      tr.appendChild(el("td","num",(p.ramMB||0).toLocaleString()+" MB"));
+      tr.appendChild(el("td","muted", startExe[String(p.name||"").toLowerCase()] ? "launches at boot" : "·"));
+      ptb.appendChild(tr);
+    });
+
+    buildSpeedFixes(data, bloatHits, rows);
+  }
+
+  function buildSpeedFixes(data, bloatHits, rows){
+    var host=$("speedFixes"); host.innerHTML="";
+    var list=[];
+    list.push({t:"Turn off startup apps you don't need",risk:"safe",
+      why:"Opens Windows' own Startup apps screen. Flip off anything you don't need at boot. Fully reversible: flip it back on anytime.",
+      cmd:'start ms-settings:startupapps'});
+    list.push({t:"Manage startup in Task Manager",risk:"safe",
+      why:"The Startup tab rates each item's impact (Low / Medium / High). Right-click an item to disable it. Same effect, more detail.",
+      cmd:'taskmgr'});
+    if(bloatHits && bloatHits.length){
+      list.push({t:"Uninstall preinstalled extras you don't use",risk:"review",
+        why:"Opens Apps & features. Look for "+bloatHits.slice(0,3).join(", ")+(bloatHits.length>3?", and the others flagged above":"")+". Uninstall only what you don't use.",
+        cmd:'start ms-settings:appsfeatures'});
+    }
+    var svc = arr(rows).filter(function(r){return r.s && r.s.source==="Service" && r.s.svc;})[0];
+    if(svc){
+      list.push({t:"Set “"+svc.s.name+"” to start only when needed",risk:"adv",
+        why:"This third-party service starts with Windows. Setting it to Manual stops it auto-starting without removing it. Reversible, and it needs an Admin PowerShell.",
+        cmd:'Set-Service -Name "'+svc.s.svc+'" -StartupType Manual   # run as Admin; undo with -StartupType Automatic'});
+    }
+    var task = arr(rows).filter(function(r){return r.s && r.s.source==="Scheduled task" && r.s.name;})[0];
+    if(task){
+      var tp = (task.s.taskPath || "\\");
+      list.push({t:"Stop “"+task.s.name+"” running at sign-in",risk:"review",
+        why:"A scheduled task that runs at logon, often an app's updater. Disabling it stops the auto-run; re-enable anytime.",
+        cmd:'Disable-ScheduledTask -TaskName "'+task.s.name+'" -TaskPath "'+tp+'"   # undo with Enable-ScheduledTask'});
+    }
+    list.forEach(function(f){
+      var card=el("div","fix"), head=el("div","head");
+      head.appendChild(el("span","t",f.t));
+      head.appendChild(el("span","badge "+f.risk, riskLabel(f.risk)));
+      card.appendChild(head);
+      card.appendChild(el("div","why",f.why));
+      var box=el("div","codebox cmd");
+      var btn=el("button","btn copybtn","Copy"); btn.addEventListener("click",(function(c){return function(){copyText(c);};})(f.cmd));
+      var pre=el("pre"); pre.textContent=f.cmd;
+      box.appendChild(btn); box.appendChild(pre);
+      card.appendChild(box);
+      host.appendChild(card);
+    });
+  }
+
   // ---------- render all ----------
   function render(data){
     window.__data=data;
@@ -942,6 +1144,7 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     bars("gameBars", games);
     systemBars(data);
     buildFixes(data);
+    renderStartup(data);
   }
 
   // ---------- data intake ----------

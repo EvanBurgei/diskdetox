@@ -35,6 +35,16 @@ function FolderGB($p) {
   return 0
 }
 
+# Pull the executable's bare file name out of a command line, e.g.
+#   "C:\Program Files\App\app.exe" --flag   ->   app.exe
+function ExeName($cmd) {
+  if (-not $cmd) { return $null }
+  $c = ([string]$cmd).Trim()
+  if ($c.StartsWith('"')) { $c = $c.Substring(1); $i = $c.IndexOf('"'); if ($i -ge 0) { $c = $c.Substring(0, $i) } }
+  else { $sp = $c.IndexOf(' '); if ($sp -gt 0) { $c = $c.Substring(0, $sp) } }
+  try { return ([System.IO.Path]::GetFileName($c)).ToLowerInvariant() } catch { return $null }
+}
+
 Write-Host "Scanning drives..." -ForegroundColor Cyan
 $drives = Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" | ForEach-Object {
   [PSCustomObject]@{
@@ -129,11 +139,54 @@ $system = [PSCustomObject]@{
   driverStoreGB = (FolderGB 'C:\Windows\System32\DriverStore\FileRepository')
 }
 
+Write-Host "Reading startup items (Run keys, Startup folders, logon tasks, third-party services)..." -ForegroundColor Cyan
+$startup = @()
+$runKeys = @(
+  @{ src='Run (user)';   path='HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' },
+  @{ src='Run (system)'; path='HKLM:\Software\Microsoft\Windows\CurrentVersion\Run' },
+  @{ src='Run (system)'; path='HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Run' }
+)
+foreach ($rk in $runKeys) {
+  if (Test-Path $rk.path) {
+    $key = Get-Item $rk.path
+    foreach ($n in $key.Property) {
+      $val = [string]$key.GetValue($n)
+      $startup += [PSCustomObject]@{ name=$n; source=$rk.src; command=$val; exe=(ExeName $val) }
+    }
+  }
+}
+$startupFolders = @("$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup",
+                    "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Startup")
+foreach ($sf in $startupFolders) {
+  if (Test-Path $sf) {
+    Get-ChildItem $sf -File -Force | Where-Object { $_.Name -ne 'desktop.ini' } | ForEach-Object {
+      $startup += [PSCustomObject]@{ name=$_.BaseName; source='Startup folder'; command=$_.FullName; exe=(ExeName $_.Name) }
+    }
+  }
+}
+Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object {
+  $_.State -ne 'Disabled' -and $_.TaskPath -notlike '\Microsoft\*' -and
+  (@($_.Triggers) | Where-Object { $_.CimClass.CimClassName -eq 'MSFT_TaskLogonTrigger' })
+} | ForEach-Object {
+  $act = [string](@($_.Actions) | Select-Object -First 1).Execute
+  $startup += [PSCustomObject]@{ name=$_.TaskName; source='Scheduled task'; command=$act; exe=(ExeName $act); taskPath=$_.TaskPath }
+}
+Get-CimInstance Win32_Service -Filter "StartMode='Auto'" |
+  Where-Object { $_.PathName -and $_.PathName -notmatch 'C:\\Windows\\' } | ForEach-Object {
+    $startup += [PSCustomObject]@{ name=$_.DisplayName; source='Service'; command=$_.PathName; exe=(ExeName $_.PathName); svc=$_.Name }
+  }
+
+Write-Host "Checking what's using memory right now..." -ForegroundColor Cyan
+$processes = Get-Process | Group-Object ProcessName | ForEach-Object {
+  [PSCustomObject]@{ name=$_.Name; ramMB=[math]::Round((($_.Group | Measure-Object WorkingSet64 -Sum).Sum)/1MB,0); count=$_.Count }
+} | Sort-Object ramMB -Descending | Select-Object -First 20
+
 # ---- Redaction ----
 $machine = if ($Redact) { $null } else { $env:COMPUTERNAME }
 if ($Redact) {
   foreach ($c in $caches) { $c.path = $null }
   foreach ($g in $games)  { $g.path = $null }
+  foreach ($s in $startup) { $s.command = $null }   # drop full exe paths; keep name/source/exe
   foreach ($f in $largestFiles) {
     $f.path = $null
     $f.name = if ($f.ext) { "(a .$($f.ext) file)" } else { "(a large file)" }
@@ -153,6 +206,8 @@ $out = [PSCustomObject]@{
   games          = @($games)
   largestFiles   = @($largestFiles)
   driveFolders   = @($driveFolders)
+  startup        = @($startup)
+  processes      = @($processes)
   system         = $system
 }
 
