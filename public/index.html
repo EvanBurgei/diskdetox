@@ -119,7 +119,10 @@
   /* table */
   table{width:100%; border-collapse:collapse; font-size:13px}
   th,td{text-align:left; padding:9px 10px; border-bottom:1px solid var(--line)}
-  th{color:var(--muted); font-weight:600; cursor:pointer; white-space:nowrap}
+  th{color:var(--muted); font-weight:600; cursor:default; white-space:nowrap}
+  th[data-sort]{cursor:pointer}
+  th[data-sort]:hover{color:var(--txt)}
+  .arrow{font-size:10px; color:var(--accent); margin-left:1px}
   td.num,th.num{text-align:right; font-variant-numeric:tabular-nums}
   tbody tr:hover{background:var(--panel2)}
 
@@ -195,6 +198,10 @@
   .trend{font-size:13px; color:var(--muted); margin:0 0 16px; display:flex; align-items:center; gap:8px}
   .trend .tdot{width:9px; height:9px; border-radius:50%; background:var(--green); flex:0 0 auto}
   .trend.down .tdot{background:var(--amber)}
+
+  /* panel header with an action button */
+  .panelhead{display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin:0 0 14px}
+  .panelhead h2{margin:0}
 </style>
 </head>
 <body>
@@ -244,7 +251,10 @@
     <div id="trend" class="trend hidden"></div>
     <div class="kpis" id="kpis"></div>
     <div class="panel">
-      <h2>Overview</h2>
+      <div class="panelhead">
+        <h2>Overview</h2>
+        <button class="btn" id="downloadReport" type="button">⬇ Download report</button>
+      </div>
       <div class="row">
         <div class="col">
           <div class="gauges" id="gauges"></div>
@@ -308,7 +318,7 @@
       <p class="muted" style="font-size:13px">Sizes are Windows' own estimates and can be rough. Uninstall only things you recognize and don't need. <strong>Keep anything that keeps your computer running</strong> (drivers, runtimes, Windows components).</p>
       <input type="search" id="programFilter" class="filter" placeholder="Filter programs by name…" autocomplete="off" aria-label="Filter programs by name">
       <table>
-        <thead><tr><th data-sort="name">Program</th><th class="num" data-sort="mb">Size (MB)</th></tr></thead>
+        <thead><tr><th data-sort="name">Program <span class="arrow"></span></th><th class="num" data-sort="mb">Size (MB) <span class="arrow"></span></th></tr></thead>
         <tbody id="programRows"></tbody>
       </table>
     </div>
@@ -721,8 +731,15 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
   // ---------- programs (sortable + filterable) ----------
   var progSort={key:"mb",dir:-1};
   var progFilter="";
+  function updateSortArrows(){
+    Array.prototype.forEach.call(document.querySelectorAll('#panel-programs th[data-sort]'), function(th){
+      var a=th.querySelector('.arrow'); if(!a) return;
+      a.textContent = (th.getAttribute('data-sort')===progSort.key) ? (progSort.dir<0?'▼':'▲') : '';
+    });
+  }
   function programRows(data){
     var tb=$("programRows"); tb.innerHTML="";
+    updateSortArrows();
     var items=arr(data.programs).slice();
     if(progFilter){ items=items.filter(function(p){ return String(p.name).toLowerCase().indexOf(progFilter)>-1; }); }
     items.sort(function(a,b){
@@ -812,6 +829,48 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
       host.appendChild(card);
     });
   }
+
+  // ---------- downloadable report ----------
+  function buildReportText(data){
+    var L=[];
+    function lpad(s,n){ s=String(s); return s.length>=n?s:(new Array(n-s.length+1).join(" ")+s); }
+    function sz(g){ return lpad((Math.round((g||0)*100)/100).toFixed(2)+" GB",10); }
+    L.push("DiskDetox report");
+    L.push("Generated: "+new Date().toLocaleString());
+    if(data.demo) L.push("(EXAMPLE DATA — run the scan to report your real drive)");
+    L.push("Machine: "+(data.machine||"(not provided)")+(data.redacted?"  [redacted scan]":""));
+    if(data.generated) L.push("Source scan: "+data.generated);
+    L.push("");
+    L.push("DRIVES");
+    arr(data.drives).forEach(function(d){ L.push("  "+d.id+"  "+(100-d.pctFree)+"% full  ·  "+d.freeGB+" GB free of "+d.totalGB+" GB"); });
+    L.push("");
+    var safeTotal=arr(data.caches).filter(function(c){return c.safe;}).reduce(function(t,c){return t+(c.gb||0);},0);
+    L.push("RECLAIMABLE NOW  (~"+(Math.round(safeTotal*100)/100)+" GB safe to clear)");
+    arr(data.caches).filter(function(c){return (c.gb||0)>0.005;}).forEach(function(c){ L.push("  "+sz(c.gb)+"  "+c.name+"  ["+(c.safe?"Safe":"Review")+"]"); });
+    L.push("");
+    var lf=arr(data.largestFiles).filter(function(f){return (f.gb||0)>0;});
+    if(lf.length){ L.push("BIGGEST INDIVIDUAL FILES"); lf.forEach(function(f){ L.push("  "+sz(f.gb)+"  "+f.name+(f.path?"  ("+f.path+")":"")); }); L.push(""); }
+    var df=arr(data.driveFolders).filter(function(g){return arr(g.folders).length;});
+    if(df.length){ L.push("WHAT'S ON EACH DRIVE"); df.forEach(function(g){ L.push("  "+g.drive+" drive"); arr(g.folders).filter(function(x){return (x.gb||0)>0;}).forEach(function(x){ L.push("    "+sz(x.gb)+"  "+x.name); }); }); L.push(""); }
+    var pf=arr(data.profileFolders).filter(function(x){return (x.gb||0)>0;});
+    if(pf.length){ L.push("TOP FOLDERS IN YOUR PROFILE"); pf.forEach(function(x){ L.push("  "+sz(x.gb)+"  "+x.name); }); L.push(""); }
+    var pr=arr(data.programs).slice(0,15);
+    if(pr.length){ L.push("LARGEST PROGRAMS (top 15)"); pr.forEach(function(p){ L.push("  "+lpad((p.mb||0)+" MB",10)+"  "+p.name); }); L.push(""); }
+    L.push("— diskdetox.com · everything ran in your browser · nothing was uploaded");
+    return L.join("\r\n");
+  }
+  function downloadReport(){
+    var data=window.__data; if(!data){ toast("Nothing to report yet"); return; }
+    try{
+      var blob=new Blob([buildReportText(data)],{type:"text/plain;charset=utf-8"});
+      var url=URL.createObjectURL(blob);
+      var a=el("a"); a.href=url; a.download="diskdetox-report.txt";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); },1500);
+      toast("Report downloaded");
+    }catch(e){ toast("Download failed"); }
+  }
+  $("downloadReport").addEventListener("click", downloadReport);
 
   // ---------- tabs ----------
   function activateTab(name){
