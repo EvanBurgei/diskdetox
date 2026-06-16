@@ -5,31 +5,31 @@
 <!-- Enforce the zero-network promise at the browser level: no fetch/XHR/beacons, no external scripts/styles/fonts/images. Only inline code + data: images (the favicon). -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DiskDetox — Free up space on your Windows PC (100% private)</title>
-<meta name="description" content="DiskDetox shows what's eating your Windows hard drive and gives you ranked, copy-and-run fixes to reclaim space. 100% private — your data never leaves your browser. Free, no install, no sign-up.">
+<title>DiskDetox · Free up space on your Windows PC (100% private)</title>
+<meta name="description" content="See what's eating your Windows hard drive, then get copy-and-run fixes to clear it. Your data never leaves your browser. Free, no install, no sign-up.">
 <link rel="canonical" href="https://diskdetox.com/">
 <meta name="color-scheme" content="dark light">
 <meta name="theme-color" content="#0F1729" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#F4F1EA" media="(prefers-color-scheme: light)">
 <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJEaXNrRGV0b3giPgogIDxkZWZzPgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJkZCIgeDE9IjAiIHkxPSIwIiB4Mj0iMSIgeTI9IjEiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiMzQTg2QTAiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMkQ2QjgyIi8+CiAgICA8L2xpbmVhckdyYWRpZW50PgogIDwvZGVmcz4KICA8cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI3LjUiIGZpbGw9InVybCgjZGQpIi8+CiAgPGNpcmNsZSBjeD0iMTQuNSIgY3k9IjE3LjUiIHI9IjgiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZmZmZiIgc3Ryb2tlLXdpZHRoPSIzLjQiCiAgICAgICAgICBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1kYXNoYXJyYXk9IjQwIDYwIiB0cmFuc2Zvcm09InJvdGF0ZSgtMTIwIDE0LjUgMTcuNSkiLz4KICA8cGF0aCBkPSJNMjUgMy41IEwyNi42IDYuOSBMMzAgOC41IEwyNi42IDEwLjEgTDI1IDEzLjUgTDIzLjQgMTAuMSBMMjAgOC41IEwyMy40IDYuOSBaIiBmaWxsPSIjZmZmZmZmIi8+Cjwvc3ZnPgo=">
-<!-- Open Graph / social share preview. NOTE: og:image is fetched by social scrapers (Twitter / Facebook / iMessage) on their own servers — never by this page. The page itself makes zero network calls. -->
+<!-- Open Graph / social share preview. NOTE: og:image is fetched by social scrapers (Twitter / Facebook / iMessage) on their own servers, never by this page. The page itself makes zero network calls. -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="DiskDetox">
-<meta property="og:title" content="DiskDetox — Free up space on your Windows PC">
-<meta property="og:description" content="See what's eating your drive and get ranked, copy-and-run fixes. 100% private — nothing ever leaves your browser.">
+<meta property="og:title" content="DiskDetox · Free up space on your Windows PC">
+<meta property="og:description" content="See what's eating your drive, then get copy-and-run fixes to clear it. Nothing ever leaves your browser.">
 <meta property="og:url" content="https://diskdetox.com/">
 <meta property="og:image" content="https://diskdetox.com/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="DiskDetox — free up space on your Windows PC, 100% private.">
+<meta property="og:image:alt" content="DiskDetox. Free up space on your Windows PC, 100% private.">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="DiskDetox — Free up space on your Windows PC">
-<meta name="twitter:description" content="See what's eating your drive and get ranked, copy-and-run fixes. 100% private — nothing ever leaves your browser.">
+<meta name="twitter:title" content="DiskDetox · Free up space on your Windows PC">
+<meta name="twitter:description" content="See what's eating your drive, then get copy-and-run fixes to clear it. Nothing ever leaves your browser.">
 <meta name="twitter:image" content="https://diskdetox.com/og.png">
 <style>
   /* Evan brand tokens. Day/night via [data-theme] (set from OS preference or saved choice). */
   :root, :root[data-theme="dark"]{
-    /* night — deep navy / paper-cream text / petrol accent / rust attention */
+    /* night: deep navy / paper-cream text / petrol accent / rust attention */
     --bg:#0F1729; --panel:#172339; --panel2:#1F2D49; --line:#2C3A5A;
     --txt:#EAE5D8; --muted:#98A2BC; --accent:#5CA3BF; --accent2:#79C4CC; --on-accent:#0F1729;
     --attention:#C24220; --on-attention:#ffffff;
@@ -39,7 +39,7 @@
     --radius:8px;
   }
   :root[data-theme="light"]{
-    /* day — paper cream / deep navy / petrol accent / rust attention */
+    /* day: paper cream / deep navy / petrol accent / rust attention */
     --bg:#F4F1EA; --panel:#FFFFFF; --panel2:#EEE9DC; --line:#DDD6C5;
     --txt:#1A2238; --muted:#5C6377; --accent:#2D6B82; --accent2:#3E8DA8; --on-accent:#FFFFFF;
     --attention:#C24220; --on-attention:#ffffff;
@@ -223,7 +223,7 @@
 </head>
 <body>
 <!--
-  Brand: Evan (personal) — Brand_Tokens/Evan.md. Voice when editing copy here: sharp, warm, plainspoken.
+  Brand: Evan (personal). Tokens at Brand_Tokens/Evan.md. Voice when editing copy here: sharp, warm, plainspoken.
   Lead with the result, use real numbers, vary sentence rhythm. Avoid: em-dashes, "it's not X it's Y",
   rule-of-three closers, AI-tell words (delve, leverage, seamless, robust), and emoji as decoration.
 -->
@@ -246,14 +246,14 @@
       <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
     </button>
   </div>
-  <p class="sub">Free up space on your Windows PC. See what's eating your drive, get ranked fixes, and reclaim space — without anything leaving your computer.</p>
+  <p class="sub">Free up space on your Windows PC. See what's eating your drive, get a ranked list of fixes, and clear room. Nothing leaves your computer.</p>
 
   <div class="privacy">
     <div class="dot"></div>
     <div>
-      <strong>Your data never leaves this page.</strong> This tool makes <em>zero</em> network requests — no servers, no analytics, no fonts or scripts loaded from the internet.
+      <strong>Your data never leaves this page.</strong> This tool makes <em>zero</em> network requests. No servers, no analytics, no fonts or scripts pulled from the internet.
       You run a read-only scan on your own machine, paste the result here, and it's processed entirely in your browser. You can save it to this browser
-      (<span class="mono">localStorage</span>) or to a file you control. Hosting the page publicly is safe because the page is just an empty shell — the data is yours alone.
+      (<span class="mono">localStorage</span>) or to a file you control. Hosting the page publicly is safe because the page is an empty shell. The data is yours alone.
     </div>
   </div>
 
@@ -269,7 +269,7 @@
   </div>
 
   <div id="demoBanner" class="demo-banner hidden">
-    <span>Showing <strong>example data</strong> — run the scan and load your own to see your real drive.</span>
+    <span>This is <strong>example data</strong>. Run the scan and load your own to see your real drive.</span>
     <button class="btn" id="demoCta" type="button">Run the scan →</button>
   </div>
 
@@ -305,12 +305,12 @@
     </div>
     <div class="panel" id="driveFoldersPanel">
       <h2>What's on each drive</h2>
-      <p class="muted" style="font-size:13px">Top-level folders on every fixed drive, biggest first — so you can see what's filling a second drive (D:, E:…), not just C:.</p>
+      <p class="muted" style="font-size:13px">Top-level folders on every fixed drive, biggest first. Now you can see what's filling a second drive (D:, E:…), not just C:.</p>
       <div id="driveFolders"></div>
     </div>
     <div class="panel" id="filesPanel">
       <h2>Biggest individual files</h2>
-      <p class="muted" style="font-size:13px">The largest single files in your profile (≥100&nbsp;MB, skips app data). These are <em>your</em> files — review before deleting. Open the folder, confirm it's junk, then remove it.</p>
+      <p class="muted" style="font-size:13px">The largest single files in your profile (≥100&nbsp;MB, skips app data). These are <em>your</em> files, so look before you delete. Open the folder, confirm it's junk, then remove it.</p>
       <table>
         <thead><tr><th>File</th><th class="num">Size</th><th>Location</th></tr></thead>
         <tbody id="fileRows"></tbody>
@@ -367,7 +367,7 @@
       <h2>1 · Run the scan</h2>
       <div class="steps">
         <div class="step"><div class="n"></div><div>Copy the PowerShell command below.</div></div>
-        <div class="step"><div class="n"></div><div>Open <strong>PowerShell</strong> on Windows (Start → type "PowerShell" → Enter), paste, and press Enter. It's read-only — it deletes nothing and reads only folder/program <em>names and sizes</em>, never file contents.</div></div>
+        <div class="step"><div class="n"></div><div>Open <strong>PowerShell</strong> on Windows (Start → type "PowerShell" → Enter), paste, and press Enter. It's read-only. It deletes nothing and reads only folder and program <em>names and sizes</em>, never file contents.</div></div>
         <div class="step"><div class="n"></div><div>It saves <span class="mono">disk-health.json</span> to your Desktop and copies it to your clipboard.</div></div>
         <div class="step"><div class="n"></div><div>Come back here and either <strong>paste</strong> the result or <strong>load the file</strong> just below.</div></div>
       </div>
@@ -381,7 +381,7 @@
         <pre id="cmdText"></pre>
       </div>
       <p class="muted" style="font-size:12.5px; margin-top:8px">
-        The scan sizes folders across all your drives and finds your largest files, so it can take a few minutes on a full or large drive — that's normal. Cloud-only OneDrive files are skipped automatically so they don't slow it down or get counted.
+        The scan sizes folders across all your drives and finds your largest files, so on a full or large drive it can take a few minutes. That's normal. Cloud-only OneDrive files are skipped automatically, so they don't slow it down or get counted.
       </p>
     </div>
 
@@ -410,19 +410,19 @@
     <div class="panel">
       <h2>Explainers</h2>
       <details><summary>Why does a near-full drive slow my computer down?</summary>
-        <div class="body">Windows constantly needs free space for the page file (virtual memory), temporary files, and updates. When a drive — especially an SSD — climbs above roughly 85–90% full, the system has less room to work and write performance drops. Freeing space back below ~85% usually restores normal responsiveness. The goal isn't just to fit a new file; it's to leave breathing room.</div>
+        <div class="body">Windows constantly needs free space for the page file (virtual memory), temporary files, and updates. When a drive climbs above roughly 85–90% full (an SSD especially), the system has less room to work and write speed drops. Freeing space back below ~85% usually brings the responsiveness back. The goal is breathing room: enough free space that Windows isn't always scraping for it.</div>
       </details>
       <details><summary>What's actually safe to delete?</summary>
-        <div class="body">Temporary files, the Recycle Bin, Windows Update leftovers, and most app caches are safe — apps regenerate them as needed. Your Downloads folder is "review" because it's your files. Never delete things in Windows, Program Files, or driver folders unless you know exactly what they are. This tool flags risk levels so you don't have to guess.</div>
+        <div class="body">Temporary files, the Recycle Bin, Windows Update leftovers, and most app caches are safe to clear. Apps rebuild them as needed. Your Downloads folder is marked "review" because those are your files. Never delete things in Windows, Program Files, or driver folders unless you know exactly what they are. This tool flags the risk level so you don't have to guess.</div>
       </details>
       <details><summary>What are "temp" and "cache" folders?</summary>
-        <div class="body">Temp folders hold short-lived working files that programs forget to clean up. Caches are saved copies of data (web pages, thumbnails, package downloads) kept around to make things faster next time. Both are safe to clear — you'll just see a one-time slowdown as they rebuild.</div>
+        <div class="body">Temp folders hold short-lived working files that programs forget to clean up. Caches are saved copies of data (web pages, thumbnails, package downloads) kept around to make things faster next time. Both are safe to clear. You'll see a one-time slowdown while they rebuild, and that's it.</div>
       </details>
       <details><summary>Is hosting this page publicly really safe?</summary>
-        <div class="body">Yes. The page is a static shell with no data in it. Your scan output is pasted in <em>your</em> browser and processed locally — it's never uploaded because the page makes no network calls at all. The only data that could ever be sensitive is folder names, and those stay on your machine. Use the "Redact" toggle if you want even folder paths and your machine name stripped from the scan output.</div>
+        <div class="body">Yes. The page is a static shell with no data in it. Your scan output is pasted in <em>your</em> browser and processed right there. It's never uploaded, because the page makes no network calls at all. The only thing that could ever be sensitive is folder names, and those stay on your machine. Use the "Redact" toggle if you want folder paths and your machine name stripped out of the scan too.</div>
       </details>
       <details><summary>How do I undo a cleanup?</summary>
-        <div class="body">Cache and temp deletions can't be "undone," but they're designed to be disposable — Windows and your apps rebuild them automatically. Items sent to the Recycle Bin can be restored until you empty it. Uninstalled programs can be reinstalled. Nothing this tool suggests touches your personal documents.</div>
+        <div class="body">Cache and temp deletions can't be "undone," but they're meant to be thrown away. Windows and your apps rebuild them automatically. Items sent to the Recycle Bin can be restored until you empty it. Uninstalled programs can be reinstalled. Nothing this tool suggests touches your personal documents.</div>
       </details>
     </div>
   </section>
@@ -595,16 +595,16 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     var needGB = Math.max(0, targetFreeGB - c.freeGB);
     var cls = pctFull>=90?"bad":(pctFull>=85?"warn":"ok");
     box.className="advisor "+cls;
-    box.appendChild(el("h3",null,"Headroom advisor — "+c.id));
+    box.appendChild(el("h3",null,"Headroom advisor · "+c.id));
     var big=el("div","big");
     if(needGB<=0){ big.textContent="You're in good shape."; }
     else { big.textContent="Clear ~"+Math.ceil(needGB)+" GB for healthy headroom"; }
     box.appendChild(big);
     var msg = pctFull>=90
-      ? "Your drive is "+Math.round(pctFull)+"% full — into the zone where Windows slows down. "
+      ? "Your drive is "+Math.round(pctFull)+"% full. That's the zone where Windows slows down. "
       : (pctFull>=85
-        ? "Your drive is "+Math.round(pctFull)+"% full — approaching the slow zone. "
-        : "Your drive is "+Math.round(pctFull)+"% full — healthy. ");
+        ? "Your drive is "+Math.round(pctFull)+"% full, getting close to the slow zone. "
+        : "Your drive is "+Math.round(pctFull)+"% full, which is healthy. ");
     msg += needGB>0
       ? "Getting back under ~85% full means freeing about "+Math.ceil(needGB)+" GB beyond whatever new files you add."
       : "You have room to add files and still keep performance steady.";
@@ -626,10 +626,10 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     var topFolder = arr(data.profileFolders).slice().sort(function(a,b){return (b.gb||0)-(a.gb||0);})[0];
     var pctFull = c ? Math.round(100-c.pctFree) : null;
     var zone = pctFull==null ? "" : (pctFull>=90?"bad":pctFull>=85?"warn":"ok");
-    host.appendChild(kpiCard(c?(c.id+" used"):"Drive used", pctFull==null?"—":pctFull+"%", c?(Math.round(c.totalGB-c.freeGB)+" of "+c.totalGB+" GB used"):"", zone, false));
-    host.appendChild(kpiCard("Free space", c?(Math.round(c.freeGB)+" GB"):"—", c?("on "+c.id+" drive"):"", "", false));
+    host.appendChild(kpiCard(c?(c.id+" used"):"Drive used", pctFull==null?"·":pctFull+"%", c?(Math.round(c.totalGB-c.freeGB)+" of "+c.totalGB+" GB used"):"", zone, false));
+    host.appendChild(kpiCard("Free space", c?(Math.round(c.freeGB)+" GB"):"·", c?("on "+c.id+" drive"):"", "", false));
     host.appendChild(kpiCard("Reclaimable now", gb(safeReclaim), "safe-to-clear junk", "good", false));
-    host.appendChild(kpiCard("Biggest folder", topFolder?topFolder.name:"—", topFolder?gb(topFolder.gb):"", "", true));
+    host.appendChild(kpiCard("Biggest folder", topFolder?topFolder.name:"·", topFolder?gb(topFolder.gb):"", "", true));
   }
 
   // ---------- potential savings hero ----------
@@ -644,7 +644,7 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     var big=el("div","big"); big.innerHTML="You could reclaim about <b>~"+(Math.round(safeReclaim*10)/10)+" GB</b> right now";
     host.appendChild(big);
     var msg;
-    if(needGB<=0){ msg="Your "+c.id+" drive is already healthy — this is bonus space you can clear whenever you like."; }
+    if(needGB<=0){ msg="Your "+c.id+" drive is already healthy. This is bonus space you can clear whenever you like."; }
     else if(safeReclaim>=needGB){ msg="That's more than the ~"+Math.ceil(needGB)+" GB you need to get "+c.id+" back to healthy headroom (under ~85% full)."; }
     else { msg="That covers "+pct+"% of the ~"+Math.ceil(needGB)+" GB you need for healthy headroom on "+c.id+". The ranked fixes can free the rest."; }
     host.appendChild(el("div","msg",msg));
@@ -722,11 +722,11 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
       var act=el("td");
       var cmd=CLEAR_CMD[c.name];
       if(cmd){ var btn=el("button","btn ghost","Copy command"); btn.style.padding="4px 10px"; btn.style.fontSize="12px"; btn.addEventListener("click",function(){copyText(cmd);}); act.appendChild(btn); }
-      else { act.appendChild(el("span","muted","—")); }
+      else { act.appendChild(el("span","muted","·")); }
       tr.appendChild(act);
       tb.appendChild(tr);
     });
-    $("reclaimSummary").textContent = "About "+gb(total)+" of safe-to-clear junk found (excludes Downloads and Windows.old — review those yourself). Clearing the safe items is reversible in practice; Windows and apps rebuild them automatically.";
+    $("reclaimSummary").textContent = "About "+gb(total)+" of safe-to-clear junk found. Downloads and Windows.old are left out, since those are yours to review. Clearing the safe items is reversible in practice: Windows and apps rebuild them automatically.";
   }
 
   // ---------- largest files ----------
@@ -738,7 +738,7 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
       var tr=el("tr");
       tr.appendChild(el("td",null,f.name));
       tr.appendChild(el("td","num",gb(f.gb||0)));
-      tr.appendChild(el("td","muted",f.path||"—"));
+      tr.appendChild(el("td","muted",f.path||"·"));
       tb.appendChild(tr);
     });
   }
@@ -804,7 +804,7 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     ];
     bars("systemBars",items);
     var notes=[];
-    if((s.driverStoreGB||0)>8) notes.push("Your DriverStore is large ("+gb(s.driverStoreGB)+") — often old driver versions piling up. See the Advanced fix below to remove unused ones safely.");
+    if((s.driverStoreGB||0)>8) notes.push("Your DriverStore is large ("+gb(s.driverStoreGB)+"), usually old driver versions piling up. See the Advanced fix below to remove the unused ones safely.");
     if((s.hiberfilGB||0)>0) notes.push("Hibernation file is "+gb(s.hiberfilGB)+"; disabling hibernation reclaims it (Advanced).");
     $("systemNote").textContent = notes.join(" ");
   }
@@ -865,7 +865,7 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     function sz(g){ return lpad((Math.round((g||0)*100)/100).toFixed(2)+" GB",10); }
     L.push("DiskDetox report");
     L.push("Generated: "+new Date().toLocaleString());
-    if(data.demo) L.push("(EXAMPLE DATA — run the scan to report your real drive)");
+    if(data.demo) L.push("(EXAMPLE DATA. Run the scan to report your real drive.)");
     L.push("Machine: "+(data.machine||"(not provided)")+(data.redacted?"  [redacted scan]":""));
     if(data.generated) L.push("Source scan: "+data.generated);
     L.push("");
@@ -884,7 +884,7 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     if(pf.length){ L.push("TOP FOLDERS IN YOUR PROFILE"); pf.forEach(function(x){ L.push("  "+sz(x.gb)+"  "+x.name); }); L.push(""); }
     var pr=arr(data.programs).slice(0,15);
     if(pr.length){ L.push("LARGEST PROGRAMS (top 15)"); pr.forEach(function(p){ L.push("  "+lpad((p.mb||0)+" MB",10)+"  "+p.name); }); L.push(""); }
-    L.push("— diskdetox.com · everything ran in your browser · nothing was uploaded");
+    L.push("diskdetox.com · everything ran in your browser · nothing was uploaded");
     return L.join("\r\n");
   }
   function downloadReport(){
@@ -976,7 +976,7 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
   $("clearBtn").addEventListener("click",function(){
     try{ localStorage.removeItem(LS_KEY); }catch(e){}
     render(JSON.parse(JSON.stringify(DEMO)));
-    $("loadStatus").textContent="Cleared — showing example data again.";
+    $("loadStatus").textContent="Cleared. Showing example data again.";
     updateSavedNote(); activateTab("dashboard"); toast("Cleared");
   });
   $("demoCta").addEventListener("click",function(){ activateTab("scan"); });
@@ -1005,8 +1005,8 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
   (function restore(){
     var raw=null; try{ raw=localStorage.getItem(LS_KEY); }catch(e){}
     if(raw){ try{ var d=JSON.parse(raw); d.demo=false; render(d); $("loadStatus").textContent="Restored your last data from this browser."; }
-             catch(e){ render(JSON.parse(JSON.stringify(DEMO))); $("loadStatus").textContent="Showing demo data — load your own to begin."; } }
-    else { render(JSON.parse(JSON.stringify(DEMO))); $("loadStatus").textContent="Showing demo data — load your own to begin."; }
+             catch(e){ render(JSON.parse(JSON.stringify(DEMO))); $("loadStatus").textContent="Showing demo data. Load your own to begin."; } }
+    else { render(JSON.parse(JSON.stringify(DEMO))); $("loadStatus").textContent="Showing demo data. Load your own to begin."; }
     activateTab("dashboard");
   })();
 })();
