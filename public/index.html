@@ -43,7 +43,7 @@
     --bg:#F4F1EA; --panel:#FFFFFF; --panel2:#EEE9DC; --line:#DDD6C5;
     --txt:#1A2238; --muted:#5C6377; --accent:#2D6B82; --accent2:#3E8DA8; --on-accent:#FFFFFF;
     --attention:#C24220; --on-attention:#ffffff;
-    --green:#3B6D11; --amber:#A57A1F; --red:#8C2F2F; --chip:#EBE6D6;
+    --green:#3B6D11; --amber:#74540F; --red:#8C2F2F; --chip:#EBE6D6; /* amber deepened from #A57A1F: AA contrast for badge/banner text on amber tint in light mode */
     --serif:Charter,"Iowan Old Style","Palatino Linotype",Palatino,Cambria,Georgia,serif;
     --shadow:0 8px 26px rgba(40,40,60,.10);
   }
@@ -99,14 +99,14 @@
   code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
   .codebox{position:relative; background:#0b1016; border:1px solid var(--line); border-radius:10px;
            padding:14px 14px; overflow:auto; max-height:280px}
-  @media (prefers-color-scheme: light){ .codebox{background:#0d1117} }
+  :root[data-theme="light"] .codebox{background:#0d1117}
   .codebox pre{margin:0; color:#cfe3ff; font-size:12.5px; white-space:pre; tab-size:2}
   .copybtn{position:absolute; top:10px; right:10px}
   .toggle{display:inline-flex; gap:8px; align-items:center; font-size:13px; color:var(--muted); cursor:pointer; user-select:none}
   .toggle input{accent-color:var(--accent); width:16px; height:16px}
   textarea{width:100%; min-height:120px; resize:vertical; background:#0b1016; color:#cfe3ff;
            border:1px solid var(--line); border-radius:10px; padding:12px; font-family:ui-monospace,Consolas,monospace; font-size:12.5px}
-  @media (prefers-color-scheme: light){ textarea{background:#0d1117} }
+  :root[data-theme="light"] textarea{background:#0d1117}
   .hidden{display:none !important}
 
   /* gauge */
