@@ -624,7 +624,8 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     var topFolder = arr(data.profileFolders).slice().sort(function(a,b){return (b.gb||0)-(a.gb||0);})[0];
     var pctFull = c ? Math.round(100-c.pctFree) : null;
     var zone = pctFull==null ? "" : (pctFull>=90?"bad":pctFull>=85?"warn":"ok");
-    host.appendChild(kpiCard(c?(c.id+" used"):"Drive used", pctFull==null?"·":pctFull+"%", c?(Math.round(c.totalGB-c.freeGB)+" of "+c.totalGB+" GB used"):"", zone, false));
+    var usedSub = !c ? "" : (zone==="bad" ? "almost no room left" : zone==="warn" ? "getting tight" : (Math.round(c.totalGB-c.freeGB)+" of "+c.totalGB+" GB used"));
+    host.appendChild(kpiCard(c?(c.id+" used"):"Drive used", pctFull==null?"·":pctFull+"%", usedSub, zone, false));
     host.appendChild(kpiCard("Free space", c?(Math.round(c.freeGB)+" GB"):"·", c?("on "+c.id+" drive"):"", "", false));
     host.appendChild(kpiCard("Reclaimable now", gb(safeReclaim), "safe-to-clear junk", "good", false));
     host.appendChild(kpiCard("Biggest folder", topFolder?topFolder.name:"·", topFolder?gb(topFolder.gb):"", "", true));
