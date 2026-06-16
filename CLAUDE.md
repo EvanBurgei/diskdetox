@@ -2,7 +2,7 @@
 
 Free, 100% client-side Windows disk-cleanup web tool. Single static HTML file, zero network calls, deployed to Cloudflare Pages.
 
-- **Brand:** diskdetox (tokens at `C:\Users\egbur\OneDrive\Documents\Claude\Context\01_Core\Brand_Tokens\diskdetox.md`)
+- **Brand:** Evan (personal brand applied 2026-06-15 via brand-apply — tokens at `…\Brand_Tokens\Evan.md`). Deep-navy/paper-cream + petrol accent, rust for primary CTAs, system serif headings (no web fonts — zero-network). Day/night toggle defaults to OS, persists to `localStorage` (`diskDetoxTheme`). The original `diskdetox.md` teal/green sub-brand tokens are superseded for the live site.
 - **Docs:** code-only project — design notes live in this repo (this file + `README.md`). No separate `03_Projects` docs folder (Operating Doc mount exception).
 - **Origin:** built 2026-06-15 from the v1 reference at `C:\Users\egbur\OneDrive\Documents\Claude\Context\03_Projects\Compute_Health\`.
 

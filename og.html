@@ -14,26 +14,26 @@
   html,body{width:1200px; height:630px; overflow:hidden}
   .card{
     width:1200px; height:630px; position:relative; overflow:hidden;
-    background:radial-gradient(1100px 720px at 80% -12%, #1d3f37 0%, #11201c 46%, #0e1614 100%);
-    color:#e6f0ec; padding:78px 86px;
+    background:radial-gradient(1100px 720px at 80% -12%, #1c2d50 0%, #14203a 46%, #0F1729 100%);
+    color:#EAE5D8; padding:78px 86px;
     font-family:"Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
     display:flex; flex-direction:column; justify-content:center;
   }
   .bgring{position:absolute; right:-150px; top:-160px; width:640px; height:640px; border-radius:50%;
-          border:66px solid rgba(45,212,191,.10)}
+          border:66px solid rgba(92,163,191,.12)}
   .bgring2{position:absolute; right:90px; bottom:-250px; width:440px; height:440px; border-radius:50%;
-           border:46px solid rgba(52,211,153,.07)}
+           border:46px solid rgba(92,163,191,.07)}
   .row{display:flex; align-items:center; gap:32px; margin-bottom:34px; position:relative; z-index:1}
-  .mark{width:128px; height:128px; flex:0 0 auto; filter:drop-shadow(0 12px 30px rgba(0,0,0,.45))}
-  .name{font-size:90px; font-weight:800; letter-spacing:-2px; line-height:1}
-  .name b{color:#2dd4bf; font-weight:800}
-  .tag{font-size:44px; font-weight:700; line-height:1.16; position:relative; z-index:1; max-width:940px}
-  .sub{font-size:30px; color:#9fb3ab; margin-top:20px; position:relative; z-index:1; max-width:900px}
+  .mark{width:128px; height:128px; flex:0 0 auto; filter:drop-shadow(0 12px 30px rgba(0,0,0,.5))}
+  .name{font-size:92px; font-weight:700; letter-spacing:-1px; line-height:1; font-family:Georgia,Cambria,"Times New Roman",serif}
+  .name b{color:#5CA3BF; font-weight:700}
+  .tag{font-size:44px; font-weight:700; line-height:1.16; position:relative; z-index:1; max-width:940px; font-family:Georgia,Cambria,"Times New Roman",serif}
+  .sub{font-size:30px; color:#98A2BC; margin-top:20px; position:relative; z-index:1; max-width:900px}
   .chip{display:inline-flex; align-items:center; gap:15px; margin-top:42px; align-self:flex-start;
-        background:rgba(45,212,191,.12); border:1px solid rgba(45,212,191,.40); color:#2dd4bf;
+        background:rgba(92,163,191,.14); border:1px solid rgba(92,163,191,.42); color:#7FBBD2;
         font-size:28px; font-weight:700; padding:15px 26px; border-radius:999px; position:relative; z-index:1}
-  .dot{width:15px; height:15px; border-radius:50%; background:#34d399; box-shadow:0 0 0 6px rgba(52,211,153,.20)}
-  .url{position:absolute; right:86px; bottom:56px; font-size:31px; font-weight:700; color:#8aa39b; z-index:1; letter-spacing:.5px}
+  .dot{width:15px; height:15px; border-radius:50%; background:#7FB04A; box-shadow:0 0 0 6px rgba(111,168,74,.22)}
+  .url{position:absolute; right:86px; bottom:56px; font-size:31px; font-weight:700; color:#98A2BC; z-index:1; letter-spacing:.5px}
 </style>
 </head>
 <body>
@@ -43,7 +43,7 @@
     <div class="row">
       <svg class="mark" viewBox="0 0 32 32" role="img" aria-label="DiskDetox logo">
         <defs><linearGradient id="bm" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="#2dd4bf"/><stop offset="1" stop-color="#16a34a"/>
+          <stop offset="0" stop-color="#3A86A0"/><stop offset="1" stop-color="#2D6B82"/>
         </linearGradient></defs>
         <rect width="32" height="32" rx="7.5" fill="url(#bm)"/>
         <circle cx="14.5" cy="17.5" r="8" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-dasharray="40 60" transform="rotate(-120 14.5 17.5)"/>
@@ -52,7 +52,7 @@
       <div class="name">Disk<b>Detox</b></div>
     </div>
     <div class="tag">Free up space on your Windows&nbsp;PC.</div>
-    <div class="sub">See what's eating your drive — get ranked, copy-and-run fixes to reclaim space.</div>
+    <div class="sub">See what's eating your drive. Get ranked, copy-and-run fixes to reclaim space.</div>
     <div class="chip"><span class="dot"></span>100% private · nothing ever leaves your browser</div>
     <div class="url">diskdetox.com</div>
   </div>
