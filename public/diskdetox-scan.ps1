@@ -112,6 +112,16 @@ $largestFiles = & {
     }
   }
 
+Write-Host "Sizing top-level folders on every drive (adds some time)..." -ForegroundColor Cyan
+$skipRoot = '$Recycle.Bin','System Volume Information','Config.Msi','Recovery','$WinREAgent','$SysReset'
+$driveFolders = foreach ($d in $drives) {
+  $folders = Get-ChildItem ($d.id + '\') -Directory -Force -ErrorAction SilentlyContinue |
+    Where-Object { $skipRoot -notcontains $_.Name -and -not $_.Name.StartsWith('$') } |
+    ForEach-Object { [PSCustomObject]@{ name=$_.Name; gb=(FolderGB $_.FullName) } } |
+    Sort-Object gb -Descending | Select-Object -First 12
+  [PSCustomObject]@{ drive=$d.id; folders=@($folders) }
+}
+
 Write-Host "Measuring system files (DriverStore can take a moment)..." -ForegroundColor Cyan
 $system = [PSCustomObject]@{
   hiberfilGB    = [math]::Round(((Get-Item C:\hiberfil.sys -Force).Length) / 1GB, 2)
@@ -142,6 +152,7 @@ $out = [PSCustomObject]@{
   caches         = @($caches)
   games          = @($games)
   largestFiles   = @($largestFiles)
+  driveFolders   = @($driveFolders)
   system         = $system
 }
 

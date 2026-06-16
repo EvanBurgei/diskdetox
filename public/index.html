@@ -265,6 +265,11 @@
       <h3 style="margin-top:20px">Biggest app caches (AppData\Local)</h3>
       <div class="bars" id="appBars"></div>
     </div>
+    <div class="panel" id="driveFoldersPanel">
+      <h2>What's on each drive</h2>
+      <p class="muted" style="font-size:13px">Top-level folders on every fixed drive, biggest first — so you can see what's filling a second drive (D:, E:…), not just C:.</p>
+      <div id="driveFolders"></div>
+    </div>
     <div class="panel" id="filesPanel">
       <h2>Biggest individual files</h2>
       <p class="muted" style="font-size:13px">The largest single files in your profile (≥100&nbsp;MB, skips app data). These are <em>your</em> files — review before deleting. Open the folder, confirm it's junk, then remove it.</p>
@@ -338,7 +343,7 @@
         <pre id="cmdText"></pre>
       </div>
       <p class="muted" style="font-size:12.5px; margin-top:8px">
-        The profile scan (folder sizes + your largest files) can take a couple of minutes on a full drive — that's normal. Cloud-only OneDrive files are skipped automatically so they don't slow it down or get counted.
+        The scan sizes folders across all your drives and finds your largest files, so it can take a few minutes on a full or large drive — that's normal. Cloud-only OneDrive files are skipped automatically so they don't slow it down or get counted.
       </p>
     </div>
 
@@ -408,10 +413,12 @@ $gameRoots='C:\Program Files (x86)\Steam\steamapps\common','C:\Program Files\Epi
 $games = foreach($r in $gameRoots){ if(Test-Path $r){ Get-ChildItem $r -Directory -Force | ForEach-Object { [PSCustomObject]@{ name=$_.Name; gb=(FolderGB $_.FullName); path=$_.FullName } } } }
 $games = $games | Sort-Object gb -Descending
 $largestFiles = & { Get-ChildItem $env:USERPROFILE -File -Force -Attributes !Offline; Get-ChildItem $env:USERPROFILE -Directory -Force | Where-Object { $_.Name -ne 'AppData' } | ForEach-Object { Get-ChildItem $_.FullName -Recurse -File -Force -Attributes !Offline } } | Where-Object { $_.Length -ge 100MB } | Sort-Object Length -Descending | Select-Object -First 20 | ForEach-Object { [PSCustomObject]@{ name=$_.Name; gb=[math]::Round($_.Length/1GB,2); path=$_.DirectoryName; ext=$_.Extension.TrimStart('.').ToLowerInvariant() } }
+$skipRoot=@('$Recycle.Bin','System Volume Information','Config.Msi','Recovery','$WinREAgent','$SysReset')
+$driveFolders = foreach($d in $drives){ $folders = Get-ChildItem ($d.id + '\') -Directory -Force -ErrorAction SilentlyContinue | Where-Object { $skipRoot -notcontains $_.Name -and -not $_.Name.StartsWith('$') } | ForEach-Object { [PSCustomObject]@{ name=$_.Name; gb=(FolderGB $_.FullName) } } | Sort-Object gb -Descending | Select-Object -First 12; [PSCustomObject]@{ drive=$d.id; folders=@($folders) } }
 $system=[PSCustomObject]@{ hiberfilGB=[math]::Round(((Get-Item C:\hiberfil.sys -Force).Length)/1GB,2); pagefileGB=[math]::Round(((Get-Item C:\pagefile.sys -Force).Length)/1GB,2); driverStoreGB=(FolderGB 'C:\Windows\System32\DriverStore\FileRepository') }
 $machine = if($Redact){$null}else{$env:COMPUTERNAME}
 if($Redact){ foreach($c in $caches){$c.path=$null}; foreach($g in $games){$g.path=$null}; foreach($f in $largestFiles){ $f.path=$null; $f.name= if($f.ext){"(a .$($f.ext) file)"}else{"(a large file)"} } }
-$out=[PSCustomObject]@{ schema='disk-health/v1'; generated=(Get-Date).ToString('s'); machine=$machine; redacted=[bool]$Redact; drives=@($drives); profileFolders=@($profileFolders); appDataLocal=@($appLocal); programs=@($programs); caches=@($caches); games=@($games); largestFiles=@($largestFiles); system=$system }
+$out=[PSCustomObject]@{ schema='disk-health/v1'; generated=(Get-Date).ToString('s'); machine=$machine; redacted=[bool]$Redact; drives=@($drives); profileFolders=@($profileFolders); appDataLocal=@($appLocal); programs=@($programs); caches=@($caches); games=@($games); largestFiles=@($largestFiles); driveFolders=@($driveFolders); system=$system }
 $json=$out | ConvertTo-Json -Depth 6
 $dest="$env:USERPROFILE\Desktop\disk-health.json"
 $json | Out-File -FilePath $dest -Encoding utf8
@@ -463,6 +470,10 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
       {name:"Ubuntu-dev.vhdx",gb:2.4,path:"Documents\\VMs",ext:"vhdx"},
       {name:"project-backup-final.zip",gb:1.6,path:"Desktop",ext:"zip"},
       {name:"podcast-master.wav",gb:0.9,path:"Music\\Projects",ext:"wav"}
+    ],
+    driveFolders:[
+      {drive:"C:",folders:[{name:"Users",gb:96.2},{name:"Windows",gb:31.4},{name:"Program Files",gb:18.7},{name:"Program Files (x86)",gb:12.3},{name:"ProgramData",gb:8.1}]},
+      {drive:"D:",folders:[{name:"Games",gb:248.6},{name:"Media",gb:103.2},{name:"Backups",gb:54.9},{name:"Projects",gb:12.4}]}
     ],
     system:{hiberfilGB:0,pagefileGB:4.8,driverStoreGB:11.3}
   };
@@ -631,8 +642,8 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
   }
 
   // ---------- bar charts ----------
-  function bars(containerId, items, unit){
-    var c=$(containerId); c.innerHTML="";
+  function renderBarsInto(c, items){
+    c.innerHTML="";
     items = arr(items).filter(function(i){return (i.gb||i.mb||0)>0;});
     if(!items.length){ c.appendChild(el("p","muted","No data.")); return; }
     var max = items.reduce(function(m,i){ return Math.max(m, i.gb!=null?i.gb:i.mb); },0)||1;
@@ -646,6 +657,7 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
       c.appendChild(row);
     });
   }
+  function bars(containerId, items){ renderBarsInto($(containerId), items); }
 
   // ---------- caches table ----------
   var CLEAR_CMD = {
@@ -690,6 +702,19 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
       tr.appendChild(el("td","num",gb(f.gb||0)));
       tr.appendChild(el("td","muted",f.path||"—"));
       tb.appendChild(tr);
+    });
+  }
+
+  // ---------- per-drive folders ----------
+  function driveFolders(data){
+    var host=$("driveFolders"); host.innerHTML="";
+    var groups=arr(data.driveFolders).filter(function(g){ return arr(g.folders).filter(function(f){return (f.gb||0)>0;}).length; });
+    $("driveFoldersPanel").classList.toggle("hidden", groups.length===0);
+    groups.forEach(function(g,idx){
+      var h=el("h3",null,(g.drive||"?")+" drive"); if(idx>0) h.style.marginTop="20px";
+      host.appendChild(h);
+      var bc=el("div","bars"); host.appendChild(bc);
+      renderBarsInto(bc, g.folders);
     });
   }
 
@@ -815,6 +840,7 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     advisor(data);
     bars("folderBars", data.profileFolders);
     bars("appBars", data.appDataLocal);
+    driveFolders(data);
     fileRows(data);
     cacheRows(data);
     programRows(data);

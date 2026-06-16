@@ -29,5 +29,5 @@ Site = `public/`; static + one tiny Pages Function (`functions/` at repo root), 
 - **Source:** https://github.com/EvanBurgei/diskdetox (public). `git push` publishes source; `.\deploy.ps1` ships the site. No CI auto-deploy — chose PowerShell-only over a CF API token.
 
 ## JSON schema: `disk-health/v1`
-`{ schema, generated, machine, redacted, drives[{id,totalGB,freeGB,pctFree}], profileFolders[{name,gb}], appDataLocal[{name,gb}], programs[{name,mb}], caches[{name,gb,path,safe}], games[{name,gb,path}], largestFiles[{name,gb,path,ext}], system{hiberfilGB,pagefileGB,driverStoreGB} }`
+`{ schema, generated, machine, redacted, drives[{id,totalGB,freeGB,pctFree}], profileFolders[{name,gb}], appDataLocal[{name,gb}], programs[{name,mb}], caches[{name,gb,path,safe}], games[{name,gb,path}], largestFiles[{name,gb,path,ext}], driveFolders[{drive,folders:[{name,gb}]}], system{hiberfilGB,pagefileGB,driverStoreGB} }`
 Scan also emits browser caches (Chrome/Edge) + `Windows.old` as `caches` entries. Schema stays `disk-health/v1` (additive; page renders only sections present). `largestFiles` skips AppData; redaction strips path + reduces name to "(a .ext file)".

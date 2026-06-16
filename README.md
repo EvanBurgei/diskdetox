@@ -33,7 +33,7 @@ Dev / build files (**not** deployed): `og.html` (renders `public/og.png`), `depl
 
 ## What the scan collects
 
-Drive totals/free space · top user-profile folders by size · biggest `AppData\Local` caches · largest installed programs (from the uninstall registry) · **your largest individual files** (≥100 MB; names + sizes, skips AppData; honors the Redact toggle) · cleanable caches (Temp, Windows Temp, Windows Update cache, **Chrome/Edge cache**, Downloads, Recycle Bin, **Windows.old**) · installed games in common launcher roots · system files (hiberfil, pagefile, DriverStore). It does **not** read file contents and skips cloud-only OneDrive files (so they aren't counted or slow the scan).
+Drive totals/free space · top user-profile folders by size · **top-level folders on every fixed drive** (so you see what's filling D:, E:, …) · biggest `AppData\Local` caches · largest installed programs (from the uninstall registry) · **your largest individual files** (≥100 MB; names + sizes, skips AppData; honors the Redact toggle) · cleanable caches (Temp, Windows Temp, Windows Update cache, **Chrome/Edge cache**, Downloads, Recycle Bin, **Windows.old**) · installed games in common launcher roots · system files (hiberfil, pagefile, DriverStore). It does **not** read file contents and skips cloud-only OneDrive files (so they aren't counted or slow the scan).
 
 ## Deploy (Cloudflare Pages)
 
@@ -65,6 +65,7 @@ Runs `wrangler pages deploy public --project-name diskdetox --branch main` (uses
   caches:[{name,gb,path,safe}],
   games:[{name,gb,path}],
   largestFiles:[{name,gb,path,ext}],
+  driveFolders:[{drive,folders:[{name,gb}]}],
   system:{hiberfilGB,pagefileGB,driverStoreGB} }
 ```
 
