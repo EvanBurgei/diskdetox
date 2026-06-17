@@ -45,6 +45,28 @@ function ExeName($cmd) {
   try { return ([System.IO.Path]::GetFileName($c)).ToLowerInvariant() } catch { return $null }
 }
 
+# Pull the full executable PATH out of a command line (handles quotes and paths with spaces).
+function ExePath($cmd) {
+  if (-not $cmd) { return $null }
+  $c = ([string]$cmd).Trim()
+  if ($c.StartsWith('"')) { $i = $c.IndexOf('"', 1); if ($i -gt 0) { return $c.Substring(1, $i - 1) }; return $c.Trim('"') }
+  $m = [regex]::Match($c, '^(.+?\.(exe|com|bat|cmd|scr))\b', 'IgnoreCase')
+  if ($m.Success) { return $m.Groups[1].Value }
+  return $c
+}
+
+# Categorize where an executable lives (powers the "runs from an unusual place" signal).
+function LocCat($p) {
+  if (-not $p) { return $null }
+  $lp = $p.ToLowerInvariant()
+  if ($lp -like '*\temp\*' -or $lp -like (($env:TEMP).ToLowerInvariant() + '*')) { return 'temp' }
+  if ($lp -like (($env:USERPROFILE).ToLowerInvariant() + '\downloads*')) { return 'downloads' }
+  if ($lp -like (($env:LOCALAPPDATA).ToLowerInvariant() + '*') -or $lp -like (($env:APPDATA).ToLowerInvariant() + '*')) { return 'appdata' }
+  if ($lp -like 'c:\windows\*') { return 'system' }
+  if ($lp -like 'c:\program files*') { return 'programfiles' }
+  return 'other'
+}
+
 Write-Host "Scanning drives..." -ForegroundColor Cyan
 $drives = Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" | ForEach-Object {
   [PSCustomObject]@{
@@ -176,10 +198,49 @@ Get-CimInstance Win32_Service -Filter "StartMode='Auto'" |
     $startup += [PSCustomObject]@{ name=$_.DisplayName; source='Service'; command=$_.PathName; exe=(ExeName $_.PathName); svc=$_.Name }
   }
 
+Write-Host "Checking signatures on startup items (signed? + fingerprint)..." -ForegroundColor Cyan
+foreach ($s in $startup) {
+  $p = ExePath $s.command
+  $signed = $null; $signer = $null; $sha = $null; $loc = $null
+  if ($p -and [System.IO.Path]::IsPathRooted($p) -and (Test-Path -LiteralPath $p -PathType Leaf)) {
+    $loc = LocCat $p
+    try { $sig = Get-AuthenticodeSignature -LiteralPath $p; $signed = ($sig.Status -eq 'Valid'); if ($sig.SignerCertificate) { $signer = (($sig.SignerCertificate.Subject -split ',')[0]) -replace '^CN=','' } } catch {}
+    try { $sha = (Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash } catch {}
+  }
+  $s | Add-Member -NotePropertyName signed -NotePropertyValue $signed -Force
+  $s | Add-Member -NotePropertyName signer -NotePropertyValue $signer -Force
+  $s | Add-Member -NotePropertyName sha256 -NotePropertyValue $sha    -Force
+  $s | Add-Member -NotePropertyName loc    -NotePropertyValue $loc    -Force
+}
+
 Write-Host "Checking what's using memory right now..." -ForegroundColor Cyan
 $processes = Get-Process | Group-Object ProcessName | ForEach-Object {
   [PSCustomObject]@{ name=$_.Name; ramMB=[math]::Round((($_.Group | Measure-Object WorkingSet64 -Sum).Sum)/1MB,0); count=$_.Count }
 } | Sort-Object ramMB -Descending | Select-Object -First 20
+
+Write-Host "Reading Windows security posture (Defender, firewall, BitLocker)..." -ForegroundColor Cyan
+try {
+  $mp = Get-MpComputerStatus
+  $sigAge = if ($mp.AntivirusSignatureLastUpdated) { [int]((Get-Date) - $mp.AntivirusSignatureLastUpdated).TotalDays } else { $null }
+  $qa = if ($mp.QuickScanAge -gt 36500) { $null } else { [int]$mp.QuickScanAge }   # UInt32-max sentinel => never scanned
+  $fa = if ($mp.FullScanAge  -gt 36500) { $null } else { [int]$mp.FullScanAge }
+  $defender = [PSCustomObject]@{ present=$true; realtime=[bool]$mp.RealTimeProtectionEnabled; avEnabled=[bool]$mp.AntivirusEnabled; sigAgeDays=$sigAge; quickScanAgeDays=$qa; fullScanAgeDays=$fa; tamper=[bool]$mp.IsTamperProtected }
+} catch { $defender = [PSCustomObject]@{ present=$false } }
+$firewall = @()
+try { $firewall = Get-NetFirewallProfile | ForEach-Object { [PSCustomObject]@{ name=$_.Name; enabled=[bool]$_.Enabled } } } catch {}
+$bitlocker = $null
+try { $b = Get-BitLockerVolume -MountPoint $env:SystemDrive -ErrorAction Stop; if ($b) { $bitlocker = [string]$b.ProtectionStatus } } catch {}
+$lastUpdate = $null
+try { $lastUpdate = ('{0:yyyy-MM-dd}' -f (Get-HotFix | Sort-Object InstalledOn -Descending | Select-Object -First 1).InstalledOn) } catch {}
+$threats = @()
+try {
+  $sevMap = @{ 1='Low'; 2='Moderate'; 4='High'; 5='Severe' }
+  $threats = Get-MpThreat -ErrorAction SilentlyContinue | Select-Object -First 12 | ForEach-Object {
+    $sev = $sevMap[[int]$_.SeverityID]; if (-not $sev) { $sev = "$($_.SeverityID)" }
+    [PSCustomObject]@{ name=$_.ThreatName; severity=$sev; status='handled by Defender' }
+  }
+} catch {}
+$security = [PSCustomObject]@{ defender=$defender; firewall=@($firewall); bitlocker=$bitlocker; lastUpdate=$lastUpdate; threats=@($threats) }
 
 # ---- Redaction ----
 $machine = if ($Redact) { $null } else { $env:COMPUTERNAME }
@@ -208,6 +269,7 @@ $out = [PSCustomObject]@{
   driveFolders   = @($driveFolders)
   startup        = @($startup)
   processes      = @($processes)
+  security       = $security
   system         = $system
 }
 

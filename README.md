@@ -33,7 +33,7 @@ Dev / build files (**not** deployed): `og.html` (renders `public/og.png`), `depl
 
 ## What the scan collects
 
-Drive totals/free space · top user-profile folders by size · **top-level folders on every fixed drive** (so you see what's filling D:, E:, …) · biggest `AppData\Local` caches · largest installed programs (from the uninstall registry) · **your largest individual files** (≥100 MB; names + sizes, skips AppData; honors the Redact toggle) · cleanable caches (Temp, Windows Temp, Windows Update cache, **Chrome/Edge cache**, Downloads, Recycle Bin, **Windows.old**) · installed games in common launcher roots · **what starts automatically** (Run keys, Startup folders, logon tasks, third-party services) · **the heaviest running programs** by memory · system files (hiberfil, pagefile, DriverStore). It does **not** read file contents and skips cloud-only OneDrive files (so they aren't counted or slow the scan).
+Drive totals/free space · top user-profile folders by size · **top-level folders on every fixed drive** (so you see what's filling D:, E:, …) · biggest `AppData\Local` caches · largest installed programs (from the uninstall registry) · **your largest individual files** (≥100 MB; names + sizes, skips AppData; honors the Redact toggle) · cleanable caches (Temp, Windows Temp, Windows Update cache, **Chrome/Edge cache**, Downloads, Recycle Bin, **Windows.old**) · installed games in common launcher roots · **what starts automatically** (Run keys, Startup folders, logon tasks, third-party services) · **the heaviest running programs** by memory · **a read-only security check** (Windows Defender / firewall / BitLocker status, recent Defender detections, and code-signing on startup items) · system files (hiberfil, pagefile, DriverStore). It does **not** read file contents and skips cloud-only OneDrive files (so they aren't counted or slow the scan).
 
 ## Deploy (Cloudflare Pages)
 
@@ -66,8 +66,10 @@ Runs `wrangler pages deploy public --project-name diskdetox --branch main` (uses
   games:[{name,gb,path}],
   largestFiles:[{name,gb,path,ext}],
   driveFolders:[{drive,folders:[{name,gb}]}],
-  startup:[{name,source,command,exe,taskPath?,svc?}],
+  startup:[{name,source,command,exe,signed?,signer?,sha256?,loc?,taskPath?,svc?}],
   processes:[{name,ramMB,count}],
+  security:{defender:{present,realtime,avEnabled,sigAgeDays,quickScanAgeDays,fullScanAgeDays,tamper},
+            firewall:[{name,enabled}], bitlocker, lastUpdate, threats:[{name,severity,status}]},
   system:{hiberfilGB,pagefileGB,driverStoreGB} }
 ```
 

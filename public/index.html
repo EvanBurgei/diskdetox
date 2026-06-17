@@ -220,6 +220,32 @@
   /* panel header with an action button */
   .panelhead{display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin:0 0 14px}
   .panelhead h2{margin:0}
+  /* link-styled button */
+  .linklike{background:none; border:0; padding:0; color:var(--accent); font:inherit; cursor:pointer; text-decoration:underline}
+  .linklike:hover{color:var(--accent2)}
+  /* how-to walkthrough */
+  .walk{display:flex; flex-direction:column; gap:20px; margin:16px 0 6px}
+  .ws{display:flex; gap:16px; align-items:flex-start}
+  .wsnum{flex:0 0 auto; width:30px; height:30px; border-radius:50%; background:var(--accent); color:var(--on-accent); font-weight:700; display:grid; place-items:center}
+  .wsbody{flex:1 1 auto; min-width:0}
+  .wsbody h3{margin:2px 0 5px; font-size:16px}
+  .wsbody p{font-size:14px; margin:0 0 10px}
+  .wsfig{background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:12px; max-width:440px}
+  .wsfig svg{display:block; width:100%; height:auto}
+  .wscap{font-size:12px; color:var(--muted); margin:8px 2px 0}
+  /* security posture */
+  .sec-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:12px; margin:4px 0 0}
+  .sec-item{background:var(--panel2); border:1px solid var(--line); border-left:4px solid var(--line); border-radius:10px; padding:12px 14px}
+  .sec-item.ok{border-left-color:var(--green)}
+  .sec-item.bad{border-left-color:var(--red)}
+  .sec-item.warn{border-left-color:var(--amber)}
+  .sec-item .lbl{font-size:11.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em}
+  .sec-item .val{font-size:16px; font-weight:700; font-family:var(--serif); margin-top:3px}
+  .sec-item .sub{font-size:12.5px; color:var(--muted); margin-top:3px}
+  .pill{display:inline-block; padding:2px 9px; border-radius:999px; font-size:11.5px; font-weight:700; vertical-align:middle}
+  .pill.on{background:color-mix(in srgb, var(--green) 16%, transparent); color:color-mix(in srgb, var(--green) 60%, var(--txt))}
+  .pill.off{background:color-mix(in srgb, var(--red) 16%, transparent); color:color-mix(in srgb, var(--red) 60%, var(--txt))}
+  .pill.unk{background:var(--chip); color:var(--muted)}
 </style>
 <!-- Set day/night before first paint (no flash): saved choice wins, else the OS preference. -->
 <script>(function(){try{var s=localStorage.getItem('diskDetoxTheme');document.documentElement.setAttribute('data-theme',s||(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'));}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();</script>
@@ -268,8 +294,8 @@
     <button class="tab" role="tab" id="tab-programs" data-tab="programs" aria-controls="panel-programs" aria-selected="false" tabindex="-1">Programs</button>
     <button class="tab" role="tab" id="tab-system" data-tab="system" aria-controls="panel-system" aria-selected="false" tabindex="-1">System</button>
     <button class="tab" role="tab" id="tab-startup" data-tab="startup" aria-controls="panel-startup" aria-selected="false" tabindex="-1">Startup</button>
+    <button class="tab" role="tab" id="tab-security" data-tab="security" aria-controls="panel-security" aria-selected="false" tabindex="-1">Security</button>
     <button class="tab" role="tab" id="tab-scan" data-tab="scan" aria-controls="panel-scan" aria-selected="false" tabindex="-1">Scan</button>
-    <button class="tab" role="tab" id="tab-learn" data-tab="learn" aria-controls="panel-learn" aria-selected="false" tabindex="-1">Learn</button>
   </div>
 
   <div id="demoBanner" class="demo-banner hidden">
@@ -402,18 +428,157 @@
     </div>
   </section>
 
+  <!-- SECURITY -->
+  <section class="tabpanel hidden" id="panel-security" role="tabpanel" aria-labelledby="tab-security" data-panel="security">
+    <div class="privacy" style="border-left-color:var(--accent)">
+      <div class="dot" style="background:var(--accent); box-shadow:0 0 0 4px color-mix(in srgb, var(--accent) 20%, transparent)"></div>
+      <div><strong>This is a checkup, not an antivirus.</strong> DiskDetox can't scan for or remove malware: real detection needs constant internet updates, and this tool never touches the internet. What it can do, safely and offline, is show whether Windows' own protection is switched on and current, flag anything worth a second look, and point you to the real scanners.</div>
+    </div>
+
+    <div class="panel">
+      <div class="panelhead"><h2>Protection status</h2><span class="muted" id="secVerdict" style="font-size:13px"></span></div>
+      <div class="sec-grid" id="secGrid"></div>
+      <p class="muted" id="secNote" style="font-size:12.5px; margin-top:12px"></p>
+    </div>
+
+    <div class="panel hidden" id="threatPanel">
+      <h2>What Windows Defender has flagged</h2>
+      <p class="muted" style="font-size:13px">Items Defender has logged on this PC. It usually quarantines these automatically, so this is a record, not a live threat list.</p>
+      <table><thead><tr><th>Item</th><th>Severity</th><th>Status</th></tr></thead><tbody id="threatRows"></tbody></table>
+    </div>
+
+    <div class="panel hidden" id="suspectPanel">
+      <h2>Worth a look</h2>
+      <p class="muted" style="font-size:13px">Startup items that are <strong>unsigned</strong> or run from an unusual place (Temp, Downloads, AppData). This does <em>not</em> mean they're bad: plenty of legitimate apps look like this. It means they're worth recognizing. If you don't know what one is, copy its fingerprint and paste it into the search box at <span class="mono">virustotal.com</span> for a free reputation check.</p>
+      <div id="suspectRows"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Run a real scan (ranked)</h2>
+      <p class="muted" style="font-size:13px">These use the scanners built into Windows. <span class="badge safe">Safe</span> = read-only check. <span class="badge review">Review</span> = takes a while or needs a download. <span class="badge adv">Advanced</span> = needs Admin.</p>
+      <div id="secFixes"></div>
+    </div>
+  </section>
+
+  <!-- HOW-TO walkthrough — folded into the Scan tab (shares data-panel="scan") -->
+  <section class="tabpanel hidden" id="panel-howto" role="tabpanel" aria-labelledby="tab-scan" data-panel="scan">
+    <div class="panel">
+      <h2>How to run the scan</h2>
+      <p class="muted" style="font-size:13.5px">Never opened PowerShell? No problem. It's a built-in Windows app, and this scan only <strong>reads</strong>: it changes nothing, deletes nothing, and sends nothing anywhere. Here's every step.</p>
+
+      <div class="walk">
+        <div class="ws">
+          <div class="wsnum">1</div>
+          <div class="wsbody">
+            <h3>Get the scan</h3>
+            <p>Just below, click <strong>Copy</strong> to copy the command, or <strong>Download as .ps1 file</strong> to save it. Both are the exact same read-only script.</p>
+            <div class="wsfig">
+              <svg viewBox="0 0 440 96" role="img" aria-label="A command box with a Copy button and a download file option">
+                <rect x="8" y="10" width="424" height="58" rx="10" style="fill:var(--bg);stroke:var(--line);stroke-width:1.5"/>
+                <rect x="362" y="18" width="58" height="22" rx="6" style="fill:var(--accent)"/>
+                <text x="391" y="33" text-anchor="middle" font-size="12" font-weight="700" style="fill:var(--on-accent)">Copy</text>
+                <rect x="22" y="24" width="150" height="7" rx="3.5" style="fill:var(--muted);opacity:.5"/>
+                <rect x="22" y="38" width="300" height="7" rx="3.5" style="fill:var(--muted);opacity:.5"/>
+                <rect x="22" y="52" width="210" height="7" rx="3.5" style="fill:var(--muted);opacity:.5"/>
+                <rect x="8" y="76" width="92" height="14" rx="4" style="fill:var(--panel2);stroke:var(--line)"/>
+                <text x="54" y="86" text-anchor="middle" font-size="10" style="fill:var(--muted)">scan.ps1</text>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="ws">
+          <div class="wsnum">2</div>
+          <div class="wsbody">
+            <h3>Open PowerShell</h3>
+            <p>Press the <strong>Windows key</strong>, type <span class="mono">PowerShell</span>, and click the app in the results. (No need to "Run as administrator" for the scan.)</p>
+            <div class="wsfig">
+              <svg viewBox="0 0 440 104" role="img" aria-label="Windows search with PowerShell typed and the app in the results">
+                <rect x="10" y="12" width="420" height="34" rx="8" style="fill:var(--panel2);stroke:var(--line);stroke-width:1.5"/>
+                <circle cx="34" cy="29" r="8" style="fill:none;stroke:var(--muted);stroke-width:2.4"/>
+                <line x1="40" y1="35" x2="46" y2="41" style="stroke:var(--muted);stroke-width:2.4"/>
+                <text x="58" y="34" font-size="14" font-weight="600" style="fill:var(--txt)">PowerShell</text>
+                <rect x="10" y="54" width="420" height="38" rx="8" style="fill:var(--accent);opacity:.14"/>
+                <rect x="22" y="64" width="18" height="18" rx="3" style="fill:var(--accent)"/>
+                <text x="50" y="78" font-size="13" font-weight="600" style="fill:var(--txt)">Windows PowerShell</text>
+                <text x="356" y="78" font-size="11" style="fill:var(--muted)">App</text>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="ws">
+          <div class="wsnum">3</div>
+          <div class="wsbody">
+            <h3>Paste and press Enter</h3>
+            <p>Right-click inside the blue window to paste (or press <span class="mono">Ctrl+V</span>), then press <strong>Enter</strong>. If you downloaded the file instead, right-click it and choose <strong>Run with PowerShell</strong>.</p>
+            <div class="wsfig">
+              <svg viewBox="0 0 440 110" role="img" aria-label="A PowerShell window with the pasted command running">
+                <rect x="8" y="10" width="424" height="92" rx="8" style="fill:var(--con,#0b1016);stroke:var(--line);stroke-width:1.5"/>
+                <rect x="8" y="10" width="424" height="20" rx="8" style="fill:#15314a"/>
+                <text x="18" y="24" font-size="11" style="fill:#cfe3ff">Windows PowerShell</text>
+                <text x="18" y="50" font-size="12" font-family="ui-monospace,Consolas,monospace" style="fill:#9fd0a0">PS C:\Users\you&gt;</text>
+                <rect x="138" y="41" width="250" height="9" rx="3" style="fill:#cfe3ff;opacity:.55"/>
+                <rect x="18" y="62" width="180" height="9" rx="3" style="fill:#cfe3ff;opacity:.35"/>
+                <text x="18" y="92" font-size="12" font-family="ui-monospace,Consolas,monospace" style="fill:#9fd0a0">Scanning drives...</text>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="ws">
+          <div class="wsnum">4</div>
+          <div class="wsbody">
+            <h3>If Windows asks "are you sure?"</h3>
+            <p>Windows may warn before running a downloaded script (an execution-policy or SmartScreen prompt). That's normal and good: it warns for <em>any</em> script. This one is read-only and open-source, so it's safe to allow. Choose <strong>Yes / Run anyway</strong> (or type <span class="mono">Y</span> and Enter).</p>
+            <div class="wsfig">
+              <svg viewBox="0 0 440 92" role="img" aria-label="A confirmation prompt with a Run anyway choice">
+                <rect x="60" y="10" width="320" height="72" rx="10" style="fill:var(--panel2);stroke:var(--line);stroke-width:1.5"/>
+                <circle cx="92" cy="36" r="12" style="fill:var(--amber);opacity:.85"/>
+                <text x="92" y="41" text-anchor="middle" font-size="15" font-weight="800" style="fill:var(--bg)">!</text>
+                <rect x="116" y="26" width="180" height="8" rx="4" style="fill:var(--muted);opacity:.5"/>
+                <rect x="116" y="42" width="130" height="8" rx="4" style="fill:var(--muted);opacity:.5"/>
+                <rect x="244" y="58" width="64" height="18" rx="5" style="fill:var(--accent)"/>
+                <text x="276" y="71" text-anchor="middle" font-size="11" font-weight="700" style="fill:var(--on-accent)">Run</text>
+                <rect x="314" y="58" width="58" height="18" rx="5" style="fill:none;stroke:var(--line)"/>
+                <text x="343" y="71" text-anchor="middle" font-size="11" style="fill:var(--muted)">No</text>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="ws">
+          <div class="wsnum">5</div>
+          <div class="wsbody">
+            <h3>Bring the result back here</h3>
+            <p>When it finishes, it saves <span class="mono">disk-health.json</span> to your <strong>Desktop</strong> and copies it to your clipboard. Scroll down to <strong>2 · Load your results</strong> and click <strong>Paste data</strong> (or <strong>Load file…</strong> and pick it from your Desktop).</p>
+            <div class="wsfig">
+              <svg viewBox="0 0 440 96" role="img" aria-label="A saved JSON file moving into the DiskDetox paste box">
+                <rect x="16" y="22" width="60" height="52" rx="6" style="fill:var(--panel2);stroke:var(--line);stroke-width:1.5"/>
+                <rect x="26" y="34" width="40" height="6" rx="3" style="fill:var(--muted);opacity:.55"/>
+                <rect x="26" y="46" width="40" height="6" rx="3" style="fill:var(--muted);opacity:.4"/>
+                <text x="46" y="68" text-anchor="middle" font-size="9" style="fill:var(--muted)">.json</text>
+                <path d="M96 48 H150" style="stroke:var(--accent);stroke-width:2.5;fill:none"/>
+                <path d="M144 42 L152 48 L144 54 Z" style="fill:var(--accent)"/>
+                <rect x="168" y="14" width="256" height="68" rx="10" style="fill:var(--bg);stroke:var(--line);stroke-width:1.5"/>
+                <rect x="182" y="28" width="120" height="20" rx="5" style="fill:var(--attention)"/>
+                <text x="242" y="42" text-anchor="middle" font-size="11" font-weight="700" style="fill:var(--on-attention)">Paste data</text>
+                <rect x="182" y="58" width="228" height="8" rx="4" style="fill:var(--muted);opacity:.4"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- SCAN -->
   <section class="tabpanel hidden" id="panel-scan" role="tabpanel" aria-labelledby="tab-scan" data-panel="scan">
     <div class="panel">
-      <h2>1 · Run the scan</h2>
-      <div class="steps">
-        <div class="step"><div class="n"></div><div>Copy the PowerShell command below.</div></div>
-        <div class="step"><div class="n"></div><div>Open <strong>PowerShell</strong> on Windows (Start → type "PowerShell" → Enter), paste, and press Enter. It's read-only. It deletes nothing and reads only folder and program <em>names and sizes</em>, never file contents.</div></div>
-        <div class="step"><div class="n"></div><div>It saves <span class="mono">disk-health.json</span> to your Desktop and copies it to your clipboard.</div></div>
-        <div class="step"><div class="n"></div><div>Come back here and either <strong>paste</strong> the result or <strong>load the file</strong> just below.</div></div>
-      </div>
+      <h2>1 · Get the scan</h2>
+      <p class="muted" style="font-size:13.5px; margin-bottom:12px">New to this? The <strong>step-by-step walkthrough</strong> above shows every step with pictures. The scan is read-only: it deletes nothing and reads only folder and program <em>names and sizes</em>, never file contents, and nothing leaves your PC.</p>
 
-      <div style="margin:14px 0 8px" class="btn-row">
+      <div style="margin:0 0 8px" class="btn-row">
         <label class="toggle"><input type="checkbox" id="redactToggle"> Redact paths &amp; machine name (extra privacy)</label>
       </div>
 
@@ -421,7 +586,11 @@
         <button class="btn copybtn" id="copyCmd">Copy</button>
         <pre id="cmdText"></pre>
       </div>
-      <p class="muted" style="font-size:12.5px; margin-top:8px">
+      <div class="btn-row" style="margin-top:10px">
+        <button class="btn" type="button" id="downloadPs1">Download as .ps1 file</button>
+        <span class="muted" style="font-size:12.5px">Prefer a file? Download it, then right-click it and choose <strong>Run with PowerShell</strong>.</span>
+      </div>
+      <p class="muted" style="font-size:12.5px; margin-top:10px">
         The scan sizes folders across all your drives and finds your largest files, so on a full or large drive it can take a few minutes. That's normal. Cloud-only OneDrive files are skipped automatically, so they don't slow it down or get counted.
       </p>
     </div>
@@ -446,8 +615,8 @@
     </div>
   </section>
 
-  <!-- LEARN -->
-  <section class="tabpanel hidden" id="panel-learn" role="tabpanel" aria-labelledby="tab-learn" data-panel="learn">
+  <!-- LEARN / Good to know — folded into the Scan tab (shares data-panel="scan") -->
+  <section class="tabpanel hidden" id="panel-learn" role="tabpanel" aria-labelledby="tab-scan" data-panel="scan">
     <div class="panel">
       <h2>Good to know</h2>
       <details><summary>Why does a near-full drive slow my computer down?</summary>
@@ -482,6 +651,8 @@ if (-not $PSBoundParameters.ContainsKey('Redact')) { $Redact = __REDACT__ }
 $ErrorActionPreference = 'SilentlyContinue'
 function FolderGB($p){ if(Test-Path $p){ $s=(Get-ChildItem $p -Recurse -File -Force -Attributes !Offline | Measure-Object Length -Sum).Sum; if($null -eq $s){0}else{[math]::Round($s/1GB,2)} } else {0} }
 function ExeName($cmd){ if(-not $cmd){return $null} $c=([string]$cmd).Trim(); if($c.StartsWith('"')){ $c=$c.Substring(1); $i=$c.IndexOf('"'); if($i -ge 0){$c=$c.Substring(0,$i)} } else { $sp=$c.IndexOf(' '); if($sp -gt 0){$c=$c.Substring(0,$sp)} } try{([System.IO.Path]::GetFileName($c)).ToLowerInvariant()}catch{$null} }
+function ExePath($cmd){ if(-not $cmd){return $null} $c=([string]$cmd).Trim(); if($c.StartsWith('"')){ $i=$c.IndexOf('"',1); if($i -gt 0){return $c.Substring(1,$i-1)}; return $c.Trim('"') } $m=[regex]::Match($c,'^(.+?\.(exe|com|bat|cmd|scr))\b','IgnoreCase'); if($m.Success){return $m.Groups[1].Value}; return $c }
+function LocCat($p){ if(-not $p){return $null} $lp=$p.ToLowerInvariant(); if($lp -like '*\temp\*' -or $lp -like (($env:TEMP).ToLowerInvariant()+'*')){'temp'}elseif($lp -like (($env:USERPROFILE).ToLowerInvariant()+'\downloads*')){'downloads'}elseif($lp -like (($env:LOCALAPPDATA).ToLowerInvariant()+'*') -or $lp -like (($env:APPDATA).ToLowerInvariant()+'*')){'appdata'}elseif($lp -like 'c:\windows\*'){'system'}elseif($lp -like 'c:\program files*'){'programfiles'}else{'other'} }
 $drives = Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" | ForEach-Object { [PSCustomObject]@{ id=$_.DeviceID; totalGB=[math]::Round($_.Size/1GB,1); freeGB=[math]::Round($_.FreeSpace/1GB,1); pctFree=[math]::Round($_.FreeSpace/$_.Size*100,0) } }
 $profileFolders = Get-ChildItem $env:USERPROFILE -Directory -Force | ForEach-Object { [PSCustomObject]@{ name=$_.Name; gb=(FolderGB $_.FullName) } } | Sort-Object gb -Descending | Select-Object -First 15
 $appLocal = Get-ChildItem $env:LOCALAPPDATA -Directory -Force | ForEach-Object { [PSCustomObject]@{ name=$_.Name; gb=(FolderGB $_.FullName) } } | Sort-Object gb -Descending | Select-Object -First 12
@@ -503,10 +674,17 @@ $sfs=@("$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup","$env:Progra
 foreach($sf in $sfs){ if(Test-Path $sf){ Get-ChildItem $sf -File -Force | Where-Object {$_.Name -ne 'desktop.ini'} | ForEach-Object { $startup+=[PSCustomObject]@{name=$_.BaseName;source='Startup folder';command=$_.FullName;exe=(ExeName $_.Name)} } } }
 Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.State -ne 'Disabled' -and $_.TaskPath -notlike '\Microsoft\*' -and (@($_.Triggers)|Where-Object {$_.CimClass.CimClassName -eq 'MSFT_TaskLogonTrigger'}) } | ForEach-Object { $act=[string](@($_.Actions)|Select-Object -First 1).Execute; $startup+=[PSCustomObject]@{name=$_.TaskName;source='Scheduled task';command=$act;exe=(ExeName $act);taskPath=$_.TaskPath} }
 Get-CimInstance Win32_Service -Filter "StartMode='Auto'" | Where-Object { $_.PathName -and $_.PathName -notmatch 'C:\\Windows\\' } | ForEach-Object { $startup+=[PSCustomObject]@{name=$_.DisplayName;source='Service';command=$_.PathName;exe=(ExeName $_.PathName);svc=$_.Name} }
+foreach($s in $startup){ $p=ExePath $s.command; $sg=$null;$sr=$null;$sh=$null;$lc=$null; if($p -and [System.IO.Path]::IsPathRooted($p) -and (Test-Path -LiteralPath $p -PathType Leaf)){ $lc=LocCat $p; try{ $z=Get-AuthenticodeSignature -LiteralPath $p; $sg=($z.Status -eq 'Valid'); if($z.SignerCertificate){$sr=(($z.SignerCertificate.Subject -split ',')[0]) -replace '^CN=',''} }catch{}; try{ $sh=(Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash }catch{} } $s|Add-Member -NotePropertyName signed -NotePropertyValue $sg -Force; $s|Add-Member -NotePropertyName signer -NotePropertyValue $sr -Force; $s|Add-Member -NotePropertyName sha256 -NotePropertyValue $sh -Force; $s|Add-Member -NotePropertyName loc -NotePropertyValue $lc -Force }
 $processes = Get-Process | Group-Object ProcessName | ForEach-Object { [PSCustomObject]@{ name=$_.Name; ramMB=[math]::Round((($_.Group | Measure-Object WorkingSet64 -Sum).Sum)/1MB,0); count=$_.Count } } | Sort-Object ramMB -Descending | Select-Object -First 20
+try{ $mp=Get-MpComputerStatus; $sgA=if($mp.AntivirusSignatureLastUpdated){[int]((Get-Date)-$mp.AntivirusSignatureLastUpdated).TotalDays}else{$null}; $qa=if($mp.QuickScanAge -gt 36500){$null}else{[int]$mp.QuickScanAge}; $fa=if($mp.FullScanAge -gt 36500){$null}else{[int]$mp.FullScanAge}; $defender=[PSCustomObject]@{present=$true;realtime=[bool]$mp.RealTimeProtectionEnabled;avEnabled=[bool]$mp.AntivirusEnabled;sigAgeDays=$sgA;quickScanAgeDays=$qa;fullScanAgeDays=$fa;tamper=[bool]$mp.IsTamperProtected} }catch{ $defender=[PSCustomObject]@{present=$false} }
+$firewall=@(); try{ $firewall=Get-NetFirewallProfile | ForEach-Object { [PSCustomObject]@{name=$_.Name;enabled=[bool]$_.Enabled} } }catch{}
+$bitlocker=$null; try{ $b=Get-BitLockerVolume -MountPoint $env:SystemDrive -ErrorAction Stop; if($b){$bitlocker=[string]$b.ProtectionStatus} }catch{}
+$lastUpdate=$null; try{ $lastUpdate=('{0:yyyy-MM-dd}' -f (Get-HotFix | Sort-Object InstalledOn -Descending | Select-Object -First 1).InstalledOn) }catch{}
+$threats=@(); try{ $sevMap=@{1='Low';2='Moderate';4='High';5='Severe'}; $threats=Get-MpThreat -ErrorAction SilentlyContinue | Select-Object -First 12 | ForEach-Object { $sv=$sevMap[[int]$_.SeverityID]; if(-not $sv){$sv="$($_.SeverityID)"}; [PSCustomObject]@{name=$_.ThreatName;severity=$sv;status='handled by Defender'} } }catch{}
+$security=[PSCustomObject]@{defender=$defender;firewall=@($firewall);bitlocker=$bitlocker;lastUpdate=$lastUpdate;threats=@($threats)}
 $machine = if($Redact){$null}else{$env:COMPUTERNAME}
 if($Redact){ foreach($c in $caches){$c.path=$null}; foreach($g in $games){$g.path=$null}; foreach($s in $startup){$s.command=$null}; foreach($f in $largestFiles){ $f.path=$null; $f.name= if($f.ext){"(a .$($f.ext) file)"}else{"(a large file)"} } }
-$out=[PSCustomObject]@{ schema='disk-health/v1'; generated=(Get-Date).ToString('s'); machine=$machine; redacted=[bool]$Redact; drives=@($drives); profileFolders=@($profileFolders); appDataLocal=@($appLocal); programs=@($programs); caches=@($caches); games=@($games); largestFiles=@($largestFiles); driveFolders=@($driveFolders); startup=@($startup); processes=@($processes); system=$system }
+$out=[PSCustomObject]@{ schema='disk-health/v1'; generated=(Get-Date).ToString('s'); machine=$machine; redacted=[bool]$Redact; drives=@($drives); profileFolders=@($profileFolders); appDataLocal=@($appLocal); programs=@($programs); caches=@($caches); games=@($games); largestFiles=@($largestFiles); driveFolders=@($driveFolders); startup=@($startup); processes=@($processes); security=$security; system=$system }
 $json=$out | ConvertTo-Json -Depth 6
 $dest="$env:USERPROFILE\Desktop\disk-health.json"
 $json | Out-File -FilePath $dest -Encoding utf8
@@ -573,7 +751,8 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
       {name:"Google Update",source:"Scheduled task",exe:"googleupdate.exe",taskPath:"\\"},
       {name:"McAfee WebAdvisor",source:"Run (system)",exe:"mcafeewebadvisor.exe"},
       {name:"NVIDIA Display Container",source:"Service",exe:"nvdisplay.container.exe",svc:"NVDisplay.ContainerLocalSystem"},
-      {name:"Razer Synapse Service",source:"Service",exe:"razersynapse.exe",svc:"Razer Synapse Service"}
+      {name:"Razer Synapse Service",source:"Service",exe:"razersynapse.exe",svc:"Razer Synapse Service",signed:true,loc:"programfiles"},
+      {name:"WinSpeedup Helper",source:"Run (user)",exe:"winspeedup.exe",signed:false,loc:"appdata",sha256:"A1B2C3D4E5F60718A1B2C3D4E5F60718A1B2C3D4E5F60718A1B2C3D4E5F60718"}
     ],
     processes:[
       {name:"chrome",ramMB:2340,count:24},
@@ -587,7 +766,14 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
       {name:"explorer",ramMB:310,count:1},
       {name:"OneDrive",ramMB:180,count:1}
     ],
-    system:{hiberfilGB:0,pagefileGB:4.8,driverStoreGB:11.3}
+    system:{hiberfilGB:0,pagefileGB:4.8,driverStoreGB:11.3},
+    security:{
+      defender:{present:true, realtime:true, avEnabled:true, sigAgeDays:0, quickScanAgeDays:3, fullScanAgeDays:26, tamper:true},
+      firewall:[{name:"Domain",enabled:true},{name:"Private",enabled:true},{name:"Public",enabled:false}],
+      bitlocker:"Off",
+      lastUpdate:"2026-06-09",
+      threats:[]
+    }
   };
 
   // ---------- helpers ----------
@@ -1122,6 +1308,110 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     });
   }
 
+  // ---------- security posture ----------
+  function fmtAge(days){ if(days==null) return "unknown"; days=Math.round(days); if(days<=0) return "today"; if(days===1) return "1 day ago"; return days+" days ago"; }
+  function pill(on){ var k=on===true?"on":on===false?"off":"unk"; return el("span","pill "+k, on===true?"On":on===false?"Off":"Unknown"); }
+  function secCard(lbl,val,tone,sub){ var c=el("div","sec-item"+(tone?(" "+tone):"")); c.appendChild(el("div","lbl",lbl)); var v=el("div","val"); if(val&&val.nodeType){ v.appendChild(val); } else { v.textContent=val; } c.appendChild(v); if(sub) c.appendChild(el("div","sub",sub)); return c; }
+
+  function renderSecurity(data){
+    var s=data.security||{}, d=s.defender||{};
+    var grid=$("secGrid"); grid.innerHTML=""; var problems=[];
+
+    var rt = d.present===false ? null : (d.realtime===true?true:d.realtime===false?false:null);
+    grid.appendChild(secCard("Antivirus (real-time)", pill(rt), rt===true?"ok":rt===false?"bad":"", rt===false?"Your PC isn't protected in real time":d.present===false?"Defender not detected (third-party AV?)":rt===true?"Microsoft Defender is on":"Status unknown"));
+    if(rt===false) problems.push("real-time protection is off");
+
+    var sa=d.sigAgeDays;
+    grid.appendChild(secCard("Virus definitions", sa==null?"—":fmtAge(sa), sa==null?"":sa<=3?"ok":sa<=14?"warn":"bad", sa==null?"":sa>14?"Out of date — update below":"Up to date"));
+    if(sa!=null && sa>14) problems.push("virus definitions are stale");
+
+    var ls=[d.quickScanAgeDays,d.fullScanAgeDays].filter(function(x){return x!=null;});
+    var lastScan=ls.length?Math.min.apply(null,ls):null;
+    grid.appendChild(secCard("Last malware scan", lastScan==null?"—":fmtAge(lastScan), lastScan==null?"":lastScan<=7?"ok":lastScan<=30?"warn":"bad", lastScan!=null&&lastScan>30?"Been a while — run one below":""));
+
+    var fw=arr(s.firewall);
+    var fwOff=fw.filter(function(p){return !(p.enabled===true||p.enabled==="True");}).map(function(p){return p.name;});
+    var fwState=fw.length===0?null:(fwOff.length===0?true:(fwOff.length===fw.length?false:"part"));
+    var fwPill = fw.length? el("span","pill "+(fwState===true?"on":"off"), fwState===true?"On":fwState===false?"Off":"Partly off") : "—";
+    grid.appendChild(secCard("Firewall", fwPill, fwState===true?"ok":fwState===false?"bad":fwState==="part"?"warn":"", fwOff.length?("Off for: "+fwOff.join(", ")):fw.length?"All network types protected":""));
+    if(fwState===false) problems.push("the firewall is off");
+
+    var bl=s.bitlocker, blOn = bl==null?null:/on|encrypt|protected/i.test(String(bl));
+    grid.appendChild(secCard("Disk encryption", bl==null?"Unknown":(blOn?"On":"Off"), bl==null?"":blOn?"ok":"warn", bl==null?"Run as admin to check BitLocker":blOn?"BitLocker is protecting this drive":"Files aren't encrypted at rest"));
+
+    grid.appendChild(secCard("Windows updates", s.lastUpdate?s.lastUpdate:"—", "", s.lastUpdate?"Most recent update installed":"Open Windows Update to check"));
+
+    $("secVerdict").textContent = problems.length? ("Needs attention: "+problems.join(", ")+".") : "Core protections look healthy.";
+    $("secNote").textContent = "All of this is read locally and never uploaded. DiskDetox can't look inside files or detect malware itself — for that, run one of the real scans below.";
+
+    var threats=arr(s.threats);
+    $("threatPanel").classList.toggle("hidden", threats.length===0);
+    var ttb=$("threatRows"); ttb.innerHTML="";
+    threats.forEach(function(t){ var tr=el("tr"); tr.appendChild(el("td",null,t.name||"(unnamed)")); tr.appendChild(el("td",null,t.severity||"—")); tr.appendChild(el("td","muted",t.action||t.status||"logged")); ttb.appendChild(tr); });
+
+    var suspects=arr(data.startup).filter(function(x){ return x.signed===false || (x.loc&&(x.loc==="temp"||x.loc==="downloads"||x.loc==="appdata")); });
+    $("suspectPanel").classList.toggle("hidden", suspects.length===0);
+    var sr=$("suspectRows"); sr.innerHTML="";
+    suspects.forEach(function(x){
+      var reasons=[];
+      if(x.signed===false) reasons.push("unsigned (no verified publisher)");
+      if(x.loc==="temp") reasons.push("runs from a Temp folder");
+      if(x.loc==="downloads") reasons.push("runs from your Downloads");
+      if(x.loc==="appdata") reasons.push("runs from AppData");
+      var card=el("div","fix"), head=el("div","head");
+      head.appendChild(el("span","t",x.name));
+      head.appendChild(badgeEl("review","worth a look"));
+      card.appendChild(head);
+      card.appendChild(el("div","why",(reasons.join(" · ")||"unusual startup item")+". Starts via "+(x.source||"startup")+"."));
+      if(x.sha256){
+        var box=el("div","codebox cmd");
+        var btn=el("button","btn copybtn","Copy fingerprint"); btn.addEventListener("click",(function(h){return function(){copyText(h);};})(x.sha256));
+        var pre=el("pre"); pre.textContent="SHA-256: "+x.sha256+"\n# paste this at virustotal.com for a free reputation check";
+        box.appendChild(btn); box.appendChild(pre); card.appendChild(box);
+      }
+      sr.appendChild(card);
+    });
+
+    buildSecFixes(data);
+  }
+
+  function buildSecFixes(data){
+    var host=$("secFixes"); host.innerHTML="";
+    var s=data.security||{}, d=s.defender||{};
+    var list=[];
+    list.push({t:"Quick-scan with Microsoft Defender",risk:"safe",why:"Checks the places malware usually hides. A few minutes, read-only.",cmd:'Start-MpScan -ScanType QuickScan'});
+    if(d.realtime===false){ list.push({t:"Turn real-time protection back on",risk:"adv",why:"Your antivirus shield is currently off. This switches it back on. Needs an Admin PowerShell.",cmd:'Set-MpPreference -DisableRealtimeMonitoring $false   # run as Admin'}); }
+    if(arr(s.firewall).filter(function(p){return !(p.enabled===true||p.enabled==="True");}).length){ list.push({t:"Turn the firewall on",risk:"adv",why:"One or more network types aren't firewalled. This enables it for all of them. Needs Admin.",cmd:'Set-NetFirewallProfile -All -Enabled True   # run as Admin'}); }
+    list.push({t:"Update virus definitions",risk:"safe",why:"Pulls the latest Defender definitions so a scan catches the newest threats.",cmd:'Update-MpSignature'});
+    list.push({t:"Full Defender scan",risk:"review",why:"Scans every file. Thorough, but can take an hour or more. Good if something feels off.",cmd:'Start-MpScan -ScanType FullScan'});
+    list.push({t:"Second opinion: Microsoft Safety Scanner",risk:"review",why:"A separate, free Microsoft scanner you run once. Opens the official download page in your browser.",cmd:'start https://www.microsoft.com/en-us/wdsi/products/scanner'});
+    list.push({t:"Check & repair Windows system files",risk:"adv",why:"Verifies core Windows files and repairs any that are damaged. Needs an Admin PowerShell.",cmd:'sfc /scannow\nDISM /Online /Cleanup-Image /RestoreHealth   # run as Admin'});
+    list.forEach(function(f){
+      var card=el("div","fix"), head=el("div","head");
+      head.appendChild(el("span","t",f.t));
+      head.appendChild(el("span","badge "+f.risk, riskLabel(f.risk)));
+      card.appendChild(head); card.appendChild(el("div","why",f.why));
+      var box=el("div","codebox cmd");
+      var btn=el("button","btn copybtn","Copy"); btn.addEventListener("click",(function(c){return function(){copyText(c);};})(f.cmd));
+      var pre=el("pre"); pre.textContent=f.cmd;
+      box.appendChild(btn); box.appendChild(pre); card.appendChild(box);
+      host.appendChild(card);
+    });
+  }
+
+  // ---------- download the scan as a .ps1 file ----------
+  function downloadPs1(){
+    try{
+      var script=$("ps-template").textContent.replace("__REDACT__", $("redactToggle").checked?"$true":"$false");
+      var blob=new Blob([script],{type:"text/plain;charset=utf-8"});
+      var url=URL.createObjectURL(blob);
+      var a=el("a"); a.href=url; a.download="diskdetox-scan.ps1";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); },1500);
+      toast("Script downloaded");
+    }catch(e){ toast("Download failed"); }
+  }
+
   // ---------- render all ----------
   function render(data){
     window.__data=data;
@@ -1145,6 +1435,7 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     systemBars(data);
     buildFixes(data);
     renderStartup(data);
+    renderSecurity(data);
   }
 
   // ---------- data intake ----------
@@ -1207,6 +1498,7 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     });
   });
   $("programFilter").addEventListener("input", function(){ progFilter=this.value.toLowerCase(); if(window.__data) programRows(window.__data); });
+  $("downloadPs1").addEventListener("click", downloadPs1);
 
   // ---------- boot ----------
   renderCmd();
