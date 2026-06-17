@@ -1,6 +1,6 @@
 # Cloudflare Pages response headers. Reinforces the in-page <meta> CSP at the HTTP
 # level and adds header-only protections (frame-ancestors, nosniff, referrer).
-# The page's whole promise is "nothing leaves your browser" — this enforces it.
+# The page's whole promise is "nothing leaves your browser". This enforces it.
 /*
   Content-Security-Policy: default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
   X-Content-Type-Options: nosniff
