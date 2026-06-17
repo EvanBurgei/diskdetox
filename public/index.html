@@ -511,7 +511,7 @@
           <div class="wsnum">3</div>
           <div class="wsbody">
             <h3>Paste and press Enter</h3>
-            <p>Right-click inside the blue window to paste (or press <span class="mono">Ctrl+V</span>), then press <strong>Enter</strong>. If you downloaded the file instead, right-click it and choose <strong>Run with PowerShell</strong>.</p>
+            <p>Right-click inside the blue window to paste (or press <span class="mono">Ctrl+V</span>), then press <strong>Enter</strong>. It runs right there — no install, no setup. (Downloaded the file instead? See step 4.)</p>
             <div class="wsfig">
               <svg viewBox="0 0 440 110" role="img" aria-label="A PowerShell window with the pasted command running">
                 <rect x="8" y="10" width="424" height="92" rx="8" style="fill:var(--con,#0b1016);stroke:var(--line);stroke-width:1.5"/>
@@ -529,8 +529,8 @@
         <div class="ws">
           <div class="wsnum">4</div>
           <div class="wsbody">
-            <h3>If Windows asks "are you sure?"</h3>
-            <p>Windows may warn before running a downloaded script (an execution-policy or SmartScreen prompt). That's normal and good: it warns for <em>any</em> script. This one is read-only and open-source, so it's safe to allow. Choose <strong>Yes / Run anyway</strong> (or type <span class="mono">Y</span> and Enter).</p>
+            <h3>Rather run the downloaded file?</h3>
+            <p>Don't double-click it — Windows opens a <span class="mono">.ps1</span> in Notepad, and blocks "Run with PowerShell" on downloaded scripts (a safety default, not a bug). Instead, open PowerShell and run it directly, which sidesteps the block:<br><span class="mono">powershell -ExecutionPolicy Bypass -File "$HOME\Downloads\diskdetox-scan.ps1"</span></p>
             <div class="wsfig">
               <svg viewBox="0 0 440 92" role="img" aria-label="A confirmation prompt with a Run anyway choice">
                 <rect x="60" y="10" width="320" height="72" rx="10" style="fill:var(--panel2);stroke:var(--line);stroke-width:1.5"/>
@@ -588,8 +588,12 @@
       </div>
       <div class="btn-row" style="margin-top:10px">
         <button class="btn" type="button" id="downloadPs1">Download as .ps1 file</button>
-        <span class="muted" style="font-size:12.5px">Prefer a file? Download it, then right-click it and choose <strong>Run with PowerShell</strong>.</span>
       </div>
+      <p class="muted" style="font-size:12.5px; margin-top:8px">
+        Running the file: Windows opens a downloaded <span class="mono">.ps1</span> in Notepad when you double-click it, and blocks "Run with PowerShell" on downloaded scripts. That's a Windows safety default, not a bug. To run it, open PowerShell and paste this one line:<br>
+        <span class="mono">powershell -ExecutionPolicy Bypass -File "$HOME\Downloads\diskdetox-scan.ps1"</span><br>
+        Simpler: use <strong>Copy</strong> above and paste the script straight into PowerShell instead.
+      </p>
       <p class="muted" style="font-size:12.5px; margin-top:10px">
         The scan sizes folders across all your drives and finds your largest files, so on a full or large drive it can take a few minutes. That's normal. Cloud-only OneDrive files are skipped automatically, so they don't slow it down or get counted.
       </p>
@@ -646,7 +650,8 @@
 <div class="toast" id="toast"></div>
 
 <!-- ===================== PowerShell scan template ===================== -->
-<script type="text/plain" id="ps-template">param([switch]$Redact)
+<script type="text/plain" id="ps-template"># DiskDetox read-only scan. Paste this whole block into PowerShell and press Enter — it changes nothing.
+param([switch]$Redact)
 if (-not $PSBoundParameters.ContainsKey('Redact')) { $Redact = __REDACT__ }
 $ErrorActionPreference = 'SilentlyContinue'
 function FolderGB($p){ if(Test-Path $p){ $s=(Get-ChildItem $p -Recurse -File -Force -Attributes !Offline | Measure-Object Length -Sum).Sum; if($null -eq $s){0}else{[math]::Round($s/1GB,2)} } else {0} }

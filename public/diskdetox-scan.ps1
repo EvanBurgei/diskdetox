@@ -13,16 +13,19 @@
       leaving only generic folder names + sizes. Use this if you might paste
       the output anywhere other than your own browser.
 
-  Usage (PowerShell):
-    Normal:   .\disk-health-scan.ps1
-    Redacted: .\disk-health-scan.ps1 -Redact
-
-  If you prefer to paste the whole script inline instead of saving the file,
-  set the redaction flag on the next line ($true = redacted) and paste away.
+  How to run it:
+    * Easiest: open PowerShell (Start > type "PowerShell"), paste this whole
+      script, and press Enter.
+    * Or run the saved file. Windows opens .ps1 in Notepad on double-click and
+      blocks downloaded scripts by default, so run it explicitly:
+        powershell -ExecutionPolicy Bypass -File .\diskdetox-scan.ps1
+    * Add -Redact to strip the machine name and all paths from the output:
+        powershell -ExecutionPolicy Bypass -File .\diskdetox-scan.ps1 -Redact
+      (When pasting the script instead, set $Redact = $true in the line below.)
 #>
 
 param([switch]$Redact)
-if (-not $PSBoundParameters.ContainsKey('Redact')) { $Redact = $false }   # <-- inline toggle
+if (-not $PSBoundParameters.ContainsKey('Redact')) { $Redact = $false }   # when pasting, set $true here to redact
 
 $ErrorActionPreference = 'SilentlyContinue'
 
