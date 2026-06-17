@@ -194,6 +194,9 @@
 
   /* demo banner row + CTA */
   .demo-banner{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap}
+  /* "your data vs demo" status strip */
+  .datastamp{display:flex; gap:10px; align-items:center; background:var(--panel2); border:1px solid var(--line); border-left:4px solid var(--green); border-radius:10px; padding:10px 14px; margin:0 0 18px; font-size:13.5px; color:var(--txt)}
+  .datastamp .dot{flex:0 0 auto; width:9px; height:9px; border-radius:50%; background:var(--green)}
   .demo-banner .btn{flex:0 0 auto; border-color:var(--attention); color:var(--attention)}
   .demo-banner .btn:hover{filter:brightness(1.1)}
 
@@ -302,6 +305,7 @@
     <span>This is <strong>example data</strong>. Run the scan and load your own to see your real drive.</span>
     <button class="btn" id="demoCta" type="button">Run the scan →</button>
   </div>
+  <div id="dataStamp" class="datastamp hidden"></div>
 
   <!-- DASHBOARD -->
   <section class="tabpanel" id="panel-dashboard" role="tabpanel" aria-labelledby="tab-dashboard" data-panel="dashboard">
@@ -611,6 +615,7 @@
         <button class="btn" id="loadFileBtn">Load file…</button>
         <input type="file" id="fileInput" accept=".json,application/json" class="hidden">
         <button class="btn ghost" id="demoBtn">Show demo data</button>
+        <button class="btn ghost" id="sampleBtn" title="Save an example disk-health.json to try the Load file button or see the format">Download sample (.json)</button>
         <button class="btn ghost" id="clearBtn">Clear my data</button>
       </div>
       <div id="pasteArea" class="hidden">
@@ -685,7 +690,7 @@ $sfs=@("$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup","$env:Progra
 foreach($sf in $sfs){ if(Test-Path $sf){ Get-ChildItem $sf -File -Force | Where-Object {$_.Name -ne 'desktop.ini'} | ForEach-Object { $startup+=[PSCustomObject]@{name=$_.BaseName;source='Startup folder';command=$_.FullName;exe=(ExeName $_.Name)} } } }
 Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.State -ne 'Disabled' -and $_.TaskPath -notlike '\Microsoft\*' -and (@($_.Triggers)|Where-Object {$_.CimClass.CimClassName -eq 'MSFT_TaskLogonTrigger'}) } | ForEach-Object { $act=[string](@($_.Actions)|Select-Object -First 1).Execute; $startup+=[PSCustomObject]@{name=$_.TaskName;source='Scheduled task';command=$act;exe=(ExeName $act);taskPath=$_.TaskPath} }
 Get-CimInstance Win32_Service -Filter "StartMode='Auto'" | Where-Object { $_.PathName -and $_.PathName -notmatch 'C:\\Windows\\' } | ForEach-Object { $startup+=[PSCustomObject]@{name=$_.DisplayName;source='Service';command=$_.PathName;exe=(ExeName $_.PathName);svc=$_.Name} }
-foreach($s in $startup){ $p=ExePath $s.command; $sg=$null;$sr=$null;$sh=$null;$lc=$null; if($p -and [System.IO.Path]::IsPathRooted($p) -and (Test-Path -LiteralPath $p -PathType Leaf)){ $lc=LocCat $p; try{ $z=Get-AuthenticodeSignature -LiteralPath $p; $sg=($z.Status -eq 'Valid'); if($z.SignerCertificate){$sr=(($z.SignerCertificate.Subject -split ',')[0]) -replace '^CN=',''} }catch{}; try{ $sh=(Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash }catch{} } $s|Add-Member -NotePropertyName signed -NotePropertyValue $sg -Force; $s|Add-Member -NotePropertyName signer -NotePropertyValue $sr -Force; $s|Add-Member -NotePropertyName sha256 -NotePropertyValue $sh -Force; $s|Add-Member -NotePropertyName loc -NotePropertyValue $lc -Force }
+foreach($s in $startup){ $p=ExePath $s.command; $sg=$null;$sr=$null;$sh=$null;$lc=$null; if($p -and [System.IO.Path]::IsPathRooted($p) -and (Test-Path -LiteralPath $p -PathType Leaf)){ $lc=LocCat $p; try{ $z=Get-AuthenticodeSignature -LiteralPath $p -ErrorAction Stop; $sg=($z.Status -eq 'Valid'); if($z.SignerCertificate){$sr=(($z.SignerCertificate.Subject -split ',')[0]) -replace '^CN=',''} }catch{}; try{ $sh=(Get-FileHash -LiteralPath $p -Algorithm SHA256 -ErrorAction Stop).Hash }catch{} } $s|Add-Member -NotePropertyName signed -NotePropertyValue $sg -Force; $s|Add-Member -NotePropertyName signer -NotePropertyValue $sr -Force; $s|Add-Member -NotePropertyName sha256 -NotePropertyValue $sh -Force; $s|Add-Member -NotePropertyName loc -NotePropertyValue $lc -Force }
 $processes = Get-Process | Group-Object ProcessName | ForEach-Object { [PSCustomObject]@{ name=$_.Name; ramMB=[math]::Round((($_.Group | Measure-Object WorkingSet64 -Sum).Sum)/1MB,0); count=$_.Count } } | Sort-Object ramMB -Descending | Select-Object -First 20
 try{ $mp=Get-MpComputerStatus; $sgA=if($mp.AntivirusSignatureLastUpdated){[int]((Get-Date)-$mp.AntivirusSignatureLastUpdated).TotalDays}else{$null}; $qa=if($mp.QuickScanAge -gt 36500){$null}else{[int]$mp.QuickScanAge}; $fa=if($mp.FullScanAge -gt 36500){$null}else{[int]$mp.FullScanAge}; $defender=[PSCustomObject]@{present=$true;realtime=[bool]$mp.RealTimeProtectionEnabled;avEnabled=[bool]$mp.AntivirusEnabled;sigAgeDays=$sgA;quickScanAgeDays=$qa;fullScanAgeDays=$fa;tamper=[bool]$mp.IsTamperProtected} }catch{ $defender=[PSCustomObject]@{present=$false} }
 $firewall=@(); try{ $firewall=Get-NetFirewallProfile | ForEach-Object { [PSCustomObject]@{name=$_.Name;enabled=[bool]$_.Enabled} } }catch{}
@@ -1434,6 +1439,16 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
   function render(data){
     window.__data=data;
     $("demoBanner").classList.toggle("hidden", !data.demo);
+    var ds=$("dataStamp"); ds.innerHTML="";
+    if(data.demo){ ds.classList.add("hidden"); }
+    else {
+      ds.classList.remove("hidden");
+      var dsWhen="an unknown time"; try{ if(data.generated) dsWhen=new Date(data.generated).toLocaleString(); }catch(e){}
+      ds.appendChild(el("span","dot"));
+      var dsTxt=el("span"); dsTxt.appendChild(el("strong",null,"Showing your data"));
+      dsTxt.appendChild(el("span",null," · scanned "+dsWhen+(data.redacted?" · redacted":"")+(data.machine?(" · "+data.machine):"")));
+      ds.appendChild(dsTxt);
+    }
     dashboard(data);
     savings(data);
     pushSnapshot(data);
@@ -1491,6 +1506,7 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     r.readAsText(f);
   });
   $("demoBtn").addEventListener("click",function(){ render(JSON.parse(JSON.stringify(DEMO))); $("loadStatus").textContent="Showing demo data (not saved)."; activateTab("dashboard"); });
+  $("sampleBtn").addEventListener("click",function(){ try{ var b=new Blob([JSON.stringify(DEMO,null,2)],{type:"application/json"}); var u=URL.createObjectURL(b); var a=el("a"); a.href=u; a.download="disk-health-sample.json"; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){URL.revokeObjectURL(u);},1500); toast("Sample downloaded"); }catch(e){ toast("Download failed"); } });
   $("clearBtn").addEventListener("click",function(){
     try{ localStorage.removeItem(LS_KEY); }catch(e){}
     render(JSON.parse(JSON.stringify(DEMO)));

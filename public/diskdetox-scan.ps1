@@ -207,8 +207,8 @@ foreach ($s in $startup) {
   $signed = $null; $signer = $null; $sha = $null; $loc = $null
   if ($p -and [System.IO.Path]::IsPathRooted($p) -and (Test-Path -LiteralPath $p -PathType Leaf)) {
     $loc = LocCat $p
-    try { $sig = Get-AuthenticodeSignature -LiteralPath $p; $signed = ($sig.Status -eq 'Valid'); if ($sig.SignerCertificate) { $signer = (($sig.SignerCertificate.Subject -split ',')[0]) -replace '^CN=','' } } catch {}
-    try { $sha = (Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash } catch {}
+    try { $sig = Get-AuthenticodeSignature -LiteralPath $p -ErrorAction Stop; $signed = ($sig.Status -eq 'Valid'); if ($sig.SignerCertificate) { $signer = (($sig.SignerCertificate.Subject -split ',')[0]) -replace '^CN=','' } } catch {}
+    try { $sha = (Get-FileHash -LiteralPath $p -Algorithm SHA256 -ErrorAction Stop).Hash } catch {}
   }
   $s | Add-Member -NotePropertyName signed -NotePropertyValue $signed -Force
   $s | Add-Member -NotePropertyName signer -NotePropertyValue $signer -Force
