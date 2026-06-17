@@ -1315,7 +1315,7 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
 
   function renderSecurity(data){
     var s=data.security||{}, d=s.defender||{};
-    var grid=$("secGrid"); grid.innerHTML=""; var problems=[];
+    var grid=$("secGrid"); grid.innerHTML=""; var problems=[], warns=[];
 
     var rt = d.present===false ? null : (d.realtime===true?true:d.realtime===false?false:null);
     grid.appendChild(secCard("Antivirus (real-time)", pill(rt), rt===true?"ok":rt===false?"bad":"", rt===false?"Your PC isn't protected in real time":d.present===false?"Defender not detected (third-party AV?)":rt===true?"Microsoft Defender is on":"Status unknown"));
@@ -1328,20 +1328,25 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     var ls=[d.quickScanAgeDays,d.fullScanAgeDays].filter(function(x){return x!=null;});
     var lastScan=ls.length?Math.min.apply(null,ls):null;
     grid.appendChild(secCard("Last malware scan", lastScan==null?"—":fmtAge(lastScan), lastScan==null?"":lastScan<=7?"ok":lastScan<=30?"warn":"bad", lastScan!=null&&lastScan>30?"Been a while — run one below":""));
+    if(lastScan!=null && lastScan>30) warns.push("no recent malware scan");
 
     var fw=arr(s.firewall);
     var fwOff=fw.filter(function(p){return !(p.enabled===true||p.enabled==="True");}).map(function(p){return p.name;});
     var fwState=fw.length===0?null:(fwOff.length===0?true:(fwOff.length===fw.length?false:"part"));
     var fwPill = fw.length? el("span","pill "+(fwState===true?"on":"off"), fwState===true?"On":fwState===false?"Off":"Partly off") : "—";
     grid.appendChild(secCard("Firewall", fwPill, fwState===true?"ok":fwState===false?"bad":fwState==="part"?"warn":"", fwOff.length?("Off for: "+fwOff.join(", ")):fw.length?"All network types protected":""));
-    if(fwState===false) problems.push("the firewall is off");
+    if(fwState===false) problems.push("the firewall is off"); else if(fwState==="part") warns.push("firewall off for "+fwOff.join("/"));
 
     var bl=s.bitlocker, blOn = bl==null?null:/on|encrypt|protected/i.test(String(bl));
     grid.appendChild(secCard("Disk encryption", bl==null?"Unknown":(blOn?"On":"Off"), bl==null?"":blOn?"ok":"warn", bl==null?"Run as admin to check BitLocker":blOn?"BitLocker is protecting this drive":"Files aren't encrypted at rest"));
+    if(blOn===false) warns.push("disk isn't encrypted");
 
     grid.appendChild(secCard("Windows updates", s.lastUpdate?s.lastUpdate:"—", "", s.lastUpdate?"Most recent update installed":"Open Windows Update to check"));
 
-    $("secVerdict").textContent = problems.length? ("Needs attention: "+problems.join(", ")+".") : "Core protections look healthy.";
+    $("secVerdict").textContent = !data.security ? "Re-run the scan to read this PC's security status."
+      : problems.length ? ("Needs attention: "+problems.join(", ")+".")
+      : warns.length ? ("Mostly healthy — worth a look: "+warns.join(", ")+".")
+      : "Core protections look healthy.";
     $("secNote").textContent = "All of this is read locally and never uploaded. DiskDetox can't look inside files or detect malware itself — for that, run one of the real scans below.";
 
     var threats=arr(s.threats);
