@@ -594,7 +594,7 @@
       <p class="muted" style="font-size:12.5px; margin-top:8px">Don't double-click the <span class="mono">.ps1</span>. Windows opens it in Notepad as a safety default; that one command runs it properly. Saved it somewhere other than Downloads? Change the path to match.</p>
 
       <h3 style="margin-top:18px">Or paste the whole script</h3>
-      <p class="muted" style="font-size:13px; margin:0 0 6px">No download needed. Copy this, paste it into PowerShell, and press Enter. It prints a lot of lines as it pastes; that's normal.</p>
+      <p class="muted" style="font-size:13px; margin:0 0 6px">No download needed. Click <strong>Copy</strong>, paste into PowerShell, and press <strong>Enter</strong>. The block is wrapped in <span class="mono">&amp; { }</span> so PowerShell reads it all at once (you'll see <span class="mono">&gt;&gt;</span> while it loads); press Enter once at the end to start. It then scans quietly for a few minutes, then saves the result.</p>
       <div class="codebox">
         <button class="btn copybtn" id="copyCmd">Copy</button>
         <pre id="cmdText"></pre>
@@ -659,6 +659,7 @@
 param([switch]$Redact)
 if (-not $PSBoundParameters.ContainsKey('Redact')) { $Redact = __REDACT__ }
 $ErrorActionPreference = 'SilentlyContinue'
+Write-Host 'DiskDetox is scanning. This can take a few minutes with no output until it finishes; leave this window open.' -ForegroundColor Cyan
 function FolderGB($p){ if(Test-Path $p){ $s=(Get-ChildItem $p -Recurse -File -Force -Attributes !Offline | Measure-Object Length -Sum).Sum; if($null -eq $s){0}else{[math]::Round($s/1GB,2)} } else {0} }
 function ExeName($cmd){ if(-not $cmd){return $null} $c=([string]$cmd).Trim(); if($c.StartsWith('"')){ $c=$c.Substring(1); $i=$c.IndexOf('"'); if($i -ge 0){$c=$c.Substring(0,$i)} } else { $sp=$c.IndexOf(' '); if($sp -gt 0){$c=$c.Substring(0,$sp)} } try{([System.IO.Path]::GetFileName($c)).ToLowerInvariant()}catch{$null} }
 function ExePath($cmd){ if(-not $cmd){return $null} $c=([string]$cmd).Trim(); if($c.StartsWith('"')){ $i=$c.IndexOf('"',1); if($i -gt 0){return $c.Substring(1,$i-1)}; return $c.Trim('"') } $m=[regex]::Match($c,'^(.+?\.(exe|com|bat|cmd|scr))\b','IgnoreCase'); if($m.Success){return $m.Groups[1].Value}; return $c }
@@ -808,8 +809,10 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
   function renderCmd(){
     var tmpl = $("ps-template").textContent;
     var redact = $("redactToggle").checked;
-    var out = tmpl.replace("__REDACT__", redact ? "$true" : "$false");
-    $("cmdText").textContent = out;
+    var body = tmpl.replace("__REDACT__", redact ? "$true" : "$false");
+    // Wrap in & { ... } so a paste is buffered as one block and run once, instead of
+    // executing slow lines mid-paste (which overflows the console input buffer and drops text).
+    $("cmdText").textContent = "& {\n" + body + "\n}";
   }
   $("redactToggle").addEventListener("change", renderCmd);
   $("copyCmd").addEventListener("click", function(){ copyText($("cmdText").textContent); });
@@ -1418,7 +1421,7 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
   function downloadPs1(){
     try{
       var script=$("ps-template").textContent.replace("__REDACT__", $("redactToggle").checked?"$true":"$false");
-      var blob=new Blob([script],{type:"text/plain;charset=utf-8"});
+      var blob=new Blob(["﻿"+script],{type:"text/plain;charset=utf-8"});   // UTF-8 BOM so Windows PowerShell 5.1 reads it as UTF-8, not ANSI
       var url=URL.createObjectURL(blob);
       var a=el("a"); a.href=url; a.download="diskdetox-scan.ps1";
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
