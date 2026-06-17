@@ -29,6 +29,9 @@ if (-not $PSBoundParameters.ContainsKey('Redact')) { $Redact = $false }   # when
 
 $ErrorActionPreference = 'SilentlyContinue'
 
+function Step($i,$m){ Write-Host ("[{0}/14] {1}" -f $i,$m) -ForegroundColor Cyan }
+Write-Host "DiskDetox is scanning. You'll see each step below as it runs; the slow steps can take a few minutes, so leave this window open until it says Done." -ForegroundColor Cyan
+
 function FolderGB($p) {
   if (Test-Path $p) {
     $sum = (Get-ChildItem $p -Recurse -File -Force -Attributes !Offline | Measure-Object Length -Sum).Sum
@@ -70,7 +73,7 @@ function LocCat($p) {
   return 'other'
 }
 
-Write-Host "Scanning drives..." -ForegroundColor Cyan
+Step 1 'Measuring your drives'
 $drives = Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" | ForEach-Object {
   [PSCustomObject]@{
     id      = $_.DeviceID
@@ -80,17 +83,17 @@ $drives = Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" | ForEach-Obje
   }
 }
 
-Write-Host "Scanning profile folders (this is the slow part - up to a couple minutes)..." -ForegroundColor Cyan
+Step 2 'Sizing your profile folders (one of the slower steps)'
 $profileFolders = Get-ChildItem $env:USERPROFILE -Directory -Force | ForEach-Object {
   [PSCustomObject]@{ name = $_.Name; gb = (FolderGB $_.FullName) }
 } | Sort-Object gb -Descending | Select-Object -First 15
 
-Write-Host "Scanning AppData caches..." -ForegroundColor Cyan
+Step 3 'Checking AppData caches'
 $appLocal = Get-ChildItem $env:LOCALAPPDATA -Directory -Force | ForEach-Object {
   [PSCustomObject]@{ name = $_.Name; gb = (FolderGB $_.FullName) }
 } | Sort-Object gb -Descending | Select-Object -First 12
 
-Write-Host "Reading installed programs..." -ForegroundColor Cyan
+Step 4 'Reading your installed programs'
 $regPaths = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
             'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*',
             'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*'
@@ -99,7 +102,7 @@ $programs = Get-ItemProperty $regPaths |
   Select-Object @{n='name';e={$_.DisplayName}}, @{n='mb';e={[math]::Round($_.EstimatedSize/1024,0)}} |
   Sort-Object mb -Descending | Select-Object -First 30
 
-Write-Host "Measuring cleanable caches..." -ForegroundColor Cyan
+Step 5 'Measuring cleanable caches'
 $cacheDefs = @(
   @{ name='User Temp';            path=$env:TEMP;                                                  safe=$true  },
   @{ name='Windows Temp';         path='C:\Windows\Temp';                                          safe=$true  },
@@ -114,7 +117,7 @@ $caches = foreach ($c in $cacheDefs) {
   [PSCustomObject]@{ name=$c.name; gb=(FolderGB $c.path); path=$c.path; safe=$c.safe }
 }
 
-Write-Host "Looking for installed games..." -ForegroundColor Cyan
+Step 6 'Looking for installed games'
 $gameRoots = 'C:\Program Files (x86)\Steam\steamapps\common',
              'C:\Program Files\Epic Games',
              'C:\Program Files (x86)\Origin Games',
@@ -131,7 +134,7 @@ $games = foreach ($r in $gameRoots) {
 }
 $games = $games | Sort-Object gb -Descending
 
-Write-Host "Finding your largest individual files (skips AppData; one more pass)..." -ForegroundColor Cyan
+Step 7 'Finding your largest files (the slowest step; can take a few minutes on a full drive)'
 $largestFiles = & {
   Get-ChildItem $env:USERPROFILE -File -Force -Attributes !Offline
   Get-ChildItem $env:USERPROFILE -Directory -Force | Where-Object { $_.Name -ne 'AppData' } | ForEach-Object {
@@ -147,7 +150,7 @@ $largestFiles = & {
     }
   }
 
-Write-Host "Sizing top-level folders on every drive (adds some time)..." -ForegroundColor Cyan
+Step 8 'Sizing the top folders on every drive (also slow on big drives)'
 $skipRoot = '$Recycle.Bin','System Volume Information','Config.Msi','Recovery','$WinREAgent','$SysReset'
 $driveFolders = foreach ($d in $drives) {
   $folders = Get-ChildItem ($d.id + '\') -Directory -Force -ErrorAction SilentlyContinue |
@@ -157,14 +160,14 @@ $driveFolders = foreach ($d in $drives) {
   [PSCustomObject]@{ drive=$d.id; folders=@($folders) }
 }
 
-Write-Host "Measuring system files (DriverStore can take a moment)..." -ForegroundColor Cyan
+Step 9 'Measuring Windows system files'
 $system = [PSCustomObject]@{
   hiberfilGB    = [math]::Round(((Get-Item C:\hiberfil.sys -Force).Length) / 1GB, 2)
   pagefileGB    = [math]::Round(((Get-Item C:\pagefile.sys -Force).Length) / 1GB, 2)
   driverStoreGB = (FolderGB 'C:\Windows\System32\DriverStore\FileRepository')
 }
 
-Write-Host "Reading startup items (Run keys, Startup folders, logon tasks, third-party services)..." -ForegroundColor Cyan
+Step 10 'Listing what starts up with Windows'
 $startup = @()
 $runKeys = @(
   @{ src='Run (user)';   path='HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' },
@@ -201,7 +204,7 @@ Get-CimInstance Win32_Service -Filter "StartMode='Auto'" |
     $startup += [PSCustomObject]@{ name=$_.DisplayName; source='Service'; command=$_.PathName; exe=(ExeName $_.PathName); svc=$_.Name }
   }
 
-Write-Host "Checking signatures on startup items (signed? + fingerprint)..." -ForegroundColor Cyan
+Step 11 'Checking signatures on those startup items'
 foreach ($s in $startup) {
   $p = ExePath $s.command
   $signed = $null; $signer = $null; $sha = $null; $loc = $null
@@ -216,12 +219,12 @@ foreach ($s in $startup) {
   $s | Add-Member -NotePropertyName loc    -NotePropertyValue $loc    -Force
 }
 
-Write-Host "Checking what's using memory right now..." -ForegroundColor Cyan
+Step 12 'Seeing what is using memory right now'
 $processes = Get-Process | Group-Object ProcessName | ForEach-Object {
   [PSCustomObject]@{ name=$_.Name; ramMB=[math]::Round((($_.Group | Measure-Object WorkingSet64 -Sum).Sum)/1MB,0); count=$_.Count }
 } | Sort-Object ramMB -Descending | Select-Object -First 20
 
-Write-Host "Reading Windows security posture (Defender, firewall, BitLocker)..." -ForegroundColor Cyan
+Step 13 'Reading your Windows security status'
 try {
   $mp = Get-MpComputerStatus
   $sigAge = if ($mp.AntivirusSignatureLastUpdated) { [int]((Get-Date) - $mp.AntivirusSignatureLastUpdated).TotalDays } else { $null }
@@ -276,6 +279,7 @@ $out = [PSCustomObject]@{
   system         = $system
 }
 
+Step 14 'Saving your results'
 $json = $out | ConvertTo-Json -Depth 6
 $dest = "$env:USERPROFILE\Desktop\disk-health.json"
 $json | Out-File -FilePath $dest -Encoding utf8
