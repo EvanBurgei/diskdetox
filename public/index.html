@@ -313,7 +313,7 @@
     <div>
       <strong>Your data never leaves this page.</strong> This tool makes <em>zero</em> network requests. No servers, no analytics, no fonts or scripts pulled from the internet.
       You run a read-only scan on your own machine, paste the result here, and it's processed entirely in your browser. You can save it to this browser
-      (<span class="mono">localStorage</span>) or to a file you control. Hosting the page publicly is safe because the page is an empty shell. The data is yours alone.
+      (<span class="mono">localStorage</span>) or to a file you control. Hosting the page publicly is safe because the page is an empty shell. The data is yours alone. <strong>Don't take our word for it:</strong> <a href="https://github.com/EvanBurgei/diskdetox" target="_blank" rel="noopener">read every line of the source on GitHub</a>, and to prove this page sends nothing, press F12, open the Network tab, and use the page: zero requests.
     </div>
   </div>
 
@@ -377,7 +377,7 @@
     </div>
     <div class="panel" id="filesPanel">
       <h2>Biggest individual files</h2>
-      <p class="muted" style="font-size:13px">The largest single files in your profile (≥100&nbsp;MB, skips app data). These are <em>your</em> files, so look before you delete. Open the folder, confirm it's junk, then remove it.</p>
+      <p class="muted" style="font-size:13px">The largest single files in your profile (≥100&nbsp;MB, skips app data). This looks in your user profile only, not the whole drive, so a big file on another drive or in a system folder won't show here. These are <em>your</em> files, so look before you delete. Open the folder, confirm it's junk, then remove it.</p>
       <table>
         <thead><tr><th>File</th><th class="num">Size</th><th>Location</th></tr></thead>
         <tbody id="fileRows"></tbody>
@@ -628,6 +628,7 @@
       <h2>1 · Get the scan</h2>
       <p class="muted" style="font-size:13.5px; margin-bottom:12px">New to this? The <strong>step-by-step walkthrough</strong> above shows every step with pictures. The scan is read-only: it deletes nothing, reads only folder and program <em>names and sizes</em> (never file contents), and nothing leaves your PC.</p>
       <p class="muted" style="font-size:13px; margin:0 0 12px"><strong>Windows only.</strong> This doesn't work on Mac, Linux, or phones. Either Windows PowerShell or Windows Terminal is fine.</p>
+      <p class="muted" style="font-size:13px; margin:0 0 12px"><strong>Nervous about running a script?</strong> Smart instinct. Read it first: <a href="https://github.com/EvanBurgei/diskdetox/blob/main/public/diskdetox-scan.ps1" target="_blank" rel="noopener">every line is on GitHub</a>. It only measures sizes and names, and changes nothing.</p>
 
       <div style="margin:0 0 14px" class="btn-row">
         <label class="toggle"><input type="checkbox" id="redactToggle"> Redact paths &amp; machine name (applies to both options below)</label>
@@ -1037,6 +1038,7 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     var appData=arr(data.appDataLocal).filter(function(x){return (x.gb||0)>0.2;});
     var appTotal=arr(data.appDataLocal).reduce(function(t,x){return t+(x.gb||0);},0);
     var go=function(n){ return function(){ activateTab(n); }; };
+    var cloud=arr(data.profileFolders).filter(function(f){ return /onedrive|dropbox|google drive/i.test(f.name) && (f.gb||0)>1; }).sort(function(a,b){return (b.gb||0)-(a.gb||0);})[0];
 
     var t1=[],t2=[],t3=[];
     if(safeJunk>0.02) t1.push(planAct({title:"Clear temp, caches & Recycle Bin",risk:"safe",riskLabel:"Safe",gb:safeJunk,sub:"Junk Windows and apps rebuild on their own. Nothing you'll miss.",how:{label:"See the safe commands",fn:go("reclaim")}}));
@@ -1044,8 +1046,9 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     t1.push(planAct({title:"Turn on Storage Sense",risk:"safe",riskLabel:"Safe",gb:null,sub:"Let Windows clear junk and empty the Recycle Bin on a schedule, so you don't fill up again.",how:{label:"See how",fn:go("reclaim")}}));
 
     if(downloads && (downloads.gb||0)>0.05) t2.push(planAct({title:"Review your Downloads folder",risk:"review",riskLabel:"Review",gb:downloads.gb,sub:"These are your files. Clear out old installers and anything you're done with.",note:"Open Downloads in File Explorer"}));
-    if(files.length) t2.push(planAct({title:"Check your biggest files",risk:"review",riskLabel:"Review",gb:filesGB,sub:"Like "+files[0].name+" ("+gb(files[0].gb)+"). Move to the cloud or delete what you recognize.",how:{label:"See your biggest files",fn:go("breakdown")}}));
+    if(files.length) t2.push(planAct({title:"Check your biggest files",risk:"review",riskLabel:"Review",gb:filesGB,sub:"Like "+files[0].name+" ("+gb(files[0].gb)+"). Move to the cloud or delete what you recognize. These are from your profile, not the whole drive.",how:{label:"See your biggest files",fn:go("breakdown")}}));
     if(winold && (winold.gb||0)>0.1) t2.push(planAct({title:"Remove the previous Windows install",risk:"review",riskLabel:"Review",gb:winold.gb,sub:"Windows.old, kept after an upgrade. Safe to delete once your current Windows works fine.",how:{label:"See the command",fn:go("reclaim")}}));
+    if(cloud) t2.push(planAct({title:"Free up space from "+cloud.name,risk:"review",riskLabel:"Review",gb:cloud.gb,sub:"Make synced files online-only: they stay safe in the cloud and download when you open them. Frees local space with no data loss.",note:"Right-click the "+cloud.name+" folder, then Free up space"}));
 
     if(appData.length) t3.push(planAct({title:"Clear app caches inside AppData",risk:"adv",riskLabel:"Expert",gb:null,sub:"The safe slice of your "+gb(appTotal)+" of AppData (npm-cache, stale app caches). The breakdown shows which.",how:{label:"See AppData breakdown",fn:go("breakdown")}}));
     t3.push(planAct({title:"Uninstall apps you don't use",risk:"adv",riskLabel:"Expert",gb:null,sub:"Your programs list, biggest first. Remove what you recognize and don't need. Keep drivers and runtimes.",how:{label:"See your programs",fn:go("programs")}}));
@@ -1059,7 +1062,7 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
       if(rows.length){ rows.forEach(function(r){host.appendChild(r);}); }
       else { var e=el("div","plan-act"); e.appendChild(el("span","sub","Nothing flagged here right now.")); host.appendChild(e); }
     }
-    var t1tot=safeJunk+hiber, t2tot=(downloads?(downloads.gb||0):0)+filesGB+(winold?(winold.gb||0):0);
+    var t1tot=safeJunk+hiber, t2tot=(downloads?(downloads.gb||0):0)+filesGB+(winold?(winold.gb||0):0)+(cloud?(cloud.gb||0):0);
     section(1,"Safe and quick, do these now", t1tot>0.05?("frees ~"+gb(t1tot)):"", t1, true);
     section(2,"Worth a quick look", t2tot>0.05?("up to ~"+gb(t2tot)):"", t2, false);
     section(3,"Bigger moves, when you need more", "", t3, false);
