@@ -434,15 +434,26 @@
   <section class="tabpanel hidden" id="panel-startup" role="tabpanel" aria-labelledby="tab-startup" data-panel="startup">
     <div class="panel">
       <div class="panelhead">
-        <h2>What starts automatically</h2>
+        <h2>Start here for speed</h2>
         <div class="btn-row" id="startupActions"></div>
       </div>
+      <p class="muted" style="font-size:13.5px; margin:0 0 8px">What's safe to stop launching at boot. Turning an item off never uninstalls it; it just stops the auto-start, and you can flip it back anytime.</p>
+      <div class="planlegend">
+        <span><span class="badge safe">Safe to turn off</span> convenience apps</span>
+        <span><span class="badge review">Your call</span> depends on you</span>
+        <span><span class="badge keep">Leave on</span> security &amp; drivers</span>
+      </div>
+      <div id="speedPlan" class="plan"></div>
+    </div>
+
+    <div class="panel">
+      <h2>What starts automatically</h2>
       <p class="muted" id="startupSummary" style="font-size:13.5px"></p>
       <table>
         <thead><tr><th>Item</th><th>Starts from</th><th class="num">Using now</th><th>Note</th></tr></thead>
         <tbody id="startupRows"></tbody>
       </table>
-      <p class="muted" style="font-size:12.5px; margin-top:10px">Turning a startup item off is reversible: it stops the app launching at boot, it doesn't uninstall anything. The safest place to toggle these is the Startup settings button above.</p>
+      <p class="muted" style="font-size:12.5px; margin-top:10px">Turning a startup item off is reversible: it stops the app launching at boot, it doesn't uninstall anything. The safest place to toggle these is the Startup settings button at the top.</p>
     </div>
 
     <div class="panel hidden" id="bloatPanel">
@@ -642,7 +653,7 @@
         <button class="btn copybtn" id="copyRunCmd">Copy</button>
         <pre id="runCmd">powershell -ExecutionPolicy Bypass -File "$HOME\Downloads\diskdetox-scan.ps1"</pre>
       </div>
-      <p class="muted" style="font-size:12.5px; margin-top:8px">Uses the <span class="mono">.ps1</span> from button 2. Don't double-click the <span class="mono">.ps1</span> on its own — Windows opens it in Notepad as a safety default; the launcher or this command runs it properly. Saved it somewhere other than Downloads? Change the path to match.</p>
+      <p class="muted" style="font-size:12.5px; margin-top:8px">Uses the <span class="mono">.ps1</span> from button 2. Don't double-click the <span class="mono">.ps1</span> on its own. Windows opens it in Notepad as a safety default; the launcher or this command runs it properly. Saved it somewhere other than Downloads? Change the path to match.</p>
 
       <h3 style="margin-top:18px">Or paste the whole script</h3>
       <p class="muted" style="font-size:13px; margin:0 0 6px">No download needed. Click <strong>Copy</strong>, paste into PowerShell, and press <strong>Enter</strong>. The block is wrapped in <span class="mono">&amp; { }</span> so PowerShell reads it all at once (you'll see <span class="mono">&gt;&gt;</span> while it loads); press Enter once at the end to start. It then scans quietly for a few minutes, then saves the result.</p>
@@ -1049,13 +1060,13 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
       else { var e=el("div","plan-act"); e.appendChild(el("span","sub","Nothing flagged here right now.")); host.appendChild(e); }
     }
     var t1tot=safeJunk+hiber, t2tot=(downloads?(downloads.gb||0):0)+filesGB+(winold?(winold.gb||0):0);
-    section(1,"Safe & quick — do these now", t1tot>0.05?("frees ~"+gb(t1tot)):"", t1, true);
+    section(1,"Safe and quick, do these now", t1tot>0.05?("frees ~"+gb(t1tot)):"", t1, true);
     section(2,"Worth a quick look", t2tot>0.05?("up to ~"+gb(t2tot)):"", t2, false);
-    section(3,"Bigger moves — when you need more", "", t3, false);
+    section(3,"Bigger moves, when you need more", "", t3, false);
 
     var keeps=arr(data.programs).filter(function(p){return isKeepProgram(p.name);}).slice(0,3);
     if(keeps.length){
-      var kh=el("div","tierhead"); kh.appendChild(el("span","lbl","Keep — don't delete these")); host.appendChild(kh);
+      var kh=el("div","tierhead"); kh.appendChild(el("span","lbl","Keep these, don't delete them")); host.appendChild(kh);
       keeps.forEach(function(p){
         var r=el("div","plan-act");
         r.appendChild(el("span","t",p.name));
@@ -1096,12 +1107,12 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     top.forEach(function(f,i){ segs.push({name:f.name, gb:f.gb||0, c:"color-mix(in srgb, var(--accent) "+shades[i]+"%, var(--surface))"}); });
     if(other>0.5) segs.push({name:"Other & system", gb:other, c:"color-mix(in srgb, var(--muted) 42%, var(--surface))"});
     segs.push({name:"Free space", gb:free, c:"color-mix(in srgb, var(--green) 30%, var(--surface))"});
-    host.appendChild(el("p","comptitle","Where your "+c.id+" drive went — "+Math.round(total)+" GB total, "+Math.round(used)+" GB used"));
+    host.appendChild(el("p","comptitle","Where your "+c.id+" drive went. "+Math.round(total)+" GB total, "+Math.round(used)+" GB used"));
     var bar=el("div","compbar");
     segs.forEach(function(s){ var sp=document.createElement("span"); sp.style.width=(s.gb/total*100)+"%"; sp.style.background=s.c; sp.title=s.name+" · "+gb(s.gb); bar.appendChild(sp); });
     host.appendChild(bar);
     var lg=el("div","complegend");
-    segs.forEach(function(s){ var it=el("div","it"); var sw=el("span","sw"); sw.style.background=s.c; it.appendChild(sw); it.appendChild(el("span",null,s.name+" — "+gb(s.gb)+" ("+Math.round(s.gb/total*100)+"%)")); lg.appendChild(it); });
+    segs.forEach(function(s){ var it=el("div","it"); var sw=el("span","sw"); sw.style.background=s.c; it.appendChild(sw); it.appendChild(el("span",null,s.name+" · "+gb(s.gb)+" ("+Math.round(s.gb/total*100)+"%)")); lg.appendChild(it); });
     host.appendChild(lg);
   }
 
@@ -1401,6 +1412,35 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     "ctfmon","runtimebroker","searchhost","startmenuexperiencehost","shellexperiencehost","dllhost","spoolsv",
     "explorer","searchindexer","audiodg","lsaiso","secure system","textinputhost","applicationframehost","wmiprvse"];
   function isBloat(name){ var n=String(name||"").toLowerCase(); return BLOAT_HINTS.some(function(h){ return n.indexOf(h)>-1; }); }
+  // #7: plain-English startup verdict (render-side, conservative: security/drivers => leave on, unknown => your call, never a reckless "turn off")
+  var STARTUP_KEEP=["defender","security health","securityhealth","windows security","antimalware","bitdefender","kaspersky","nod32","avast","avg antivirus","malwarebytes","realtek","display container","nvidia container","intel(r) graphics","intel graphics","graphics command","synaptics","elan","touchpad","audio","bluetooth","displaylink","dolby","waves maxx","windows hello","biometric"];
+  var STARTUP_OFF=["spotify","steam","discord","epic games","epicgames","ea app","origin","itunes","skype","zoom","slack","geforce experience","acrobat update","adobe update","reader update","java update","jusched","quicktime","ccleaner","google update","googleupdate","webex","amazon music","telegram"];
+  var STARTUP_MAYBE=["dropbox","google drive","googledrive","backup","1password","bitwarden","lastpass","keeper","onedrive","creative cloud","nextcloud"];
+  function listHit(n,list){ return list.some(function(h){ return n.indexOf(h)>-1; }); }
+  function startupVerdict(s){
+    var n=(String(s.name||"")+" "+String(s.exe||"")).toLowerCase();
+    if(listHit(n,STARTUP_KEEP)) return {b:"keep",label:"Leave on",reason:"Security, a driver, or hardware support. Leave this on."};
+    if(isBloat(s.name)) return {b:"off",label:"Safe to turn off",reason:"Commonly preinstalled trialware or an extra. Safe to disable if you don't use it."};
+    if(listHit(n,STARTUP_OFF)) return {b:"off",label:"Safe to turn off",reason:"A convenience app or updater. It still works when you open it; it just doesn't need to launch at boot."};
+    if(listHit(n,STARTUP_MAYBE)) return {b:"maybe",label:"Your call",reason:"Cloud sync, backup, or a password tool. Disabling is fine, but keep it on if you want it ready at startup."};
+    return {b:"maybe",label:"Your call",reason:"No clear win either way. If you don't recognize it or don't use it at boot, turning it off is reversible."};
+  }
+  function verdictBadge(v){ return el("span","badge "+(v.b==="off"?"safe":v.b==="keep"?"keep":"review"), v.label); }
+  function buildSpeedPlan(data){
+    var host=$("speedPlan"); if(!host) return; host.innerHTML="";
+    var startup=arr(data.startup);
+    if(!startup.length){ host.appendChild(el("p","muted","No startup items in this scan. Re-run the scan to see them.")); return; }
+    var procRam={}; arr(data.processes).forEach(function(p){ var k=String(p.name||"").toLowerCase(); procRam[k]=(procRam[k]||0)+(p.ramMB||0); });
+    var off=[],maybe=[],keep=[];
+    startup.forEach(function(s){ var v=startupVerdict(s); var ram=procRam[exeBase(s.exe)]; var it={s:s,v:v,ram:(ram!=null?ram:null)}; (v.b==="off"?off:v.b==="keep"?keep:maybe).push(it); });
+    function byRam(a,b){ return (b.ram||0)-(a.ram||0); }
+    off.sort(byRam); maybe.sort(byRam);
+    function row(it){ var r=el("div","plan-act"); r.appendChild(el("span","t",it.s.name)); r.appendChild(verdictBadge(it.v)); if(it.ram!=null && it.ram>0) r.appendChild(el("span","gain",it.ram.toLocaleString()+" MB")); r.appendChild(el("span","sub", it.v.reason+(it.s.source?(" · starts from "+it.s.source):""))); return r; }
+    function section(label,items,emptyMsg){ var h=el("div","tierhead"); h.appendChild(el("span","lbl",label)); if(items.length) h.appendChild(el("span","tiertot",items.length+(items.length===1?" item":" items"))); host.appendChild(h); if(items.length){ items.forEach(function(it){ host.appendChild(row(it)); }); } else { var e=el("div","plan-act"); e.appendChild(el("span","sub",emptyMsg)); host.appendChild(e); } }
+    section("Safe to turn off", off, "Nothing here we'd flag as an obvious win to disable.");
+    section("Your call", maybe, "Nothing in this bucket.");
+    if(keep.length){ var kh=el("div","tierhead"); kh.appendChild(el("span","lbl","Leave on")); kh.appendChild(el("span","tiertot",keep.length+" items")); host.appendChild(kh); var names=keep.slice(0,6).map(function(it){return it.s.name;}).join(", "); var e=el("div","plan-act"); e.appendChild(el("span","sub","Security, drivers, and hardware support: "+names+(keep.length>6?", and others":"")+". Leave these on.")); host.appendChild(e); }
+  }
   function exeBase(exe){ return exe ? String(exe).toLowerCase().replace(/\.exe$/,"") : ""; }
   function srcRisk(src){ return (src==="Run (system)"||src==="Service") ? "adv" : "review"; }
   function riskLabel(kind){ return kind==="adv"?"Advanced":kind==="safe"?"Safe":"Review"; }
@@ -1438,8 +1478,7 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
       tr.appendChild(el("td","muted",r.s.source||"·"));
       tr.appendChild(el("td","num", r.ram!=null ? (r.ram.toLocaleString()+" MB") : "·"));
       var note=el("td");
-      note.appendChild(badgeEl(srcRisk(r.s.source)));
-      if(r.bloat){ var b2=badgeEl("review","often removed"); b2.style.marginLeft="6px"; note.appendChild(b2); }
+      note.appendChild(verdictBadge(startupVerdict(r.s)));
       tr.appendChild(note);
       tb.appendChild(tr);
     });
@@ -1476,6 +1515,7 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     });
 
     buildSpeedFixes(data, bloatHits, rows);
+    buildSpeedPlan(data);
   }
 
   function buildSpeedFixes(data, bloatHits, rows){
