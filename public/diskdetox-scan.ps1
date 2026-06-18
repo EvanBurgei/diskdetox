@@ -29,7 +29,10 @@ if (-not $PSBoundParameters.ContainsKey('Redact')) { $Redact = $false }   # when
 
 $ErrorActionPreference = 'SilentlyContinue'
 
-function Step($i,$m){ Write-Host ("[{0}/14] {1}" -f $i,$m) -ForegroundColor Cyan }
+$__sw=[System.Diagnostics.Stopwatch]::StartNew()
+function El { '{0}:{1:00}' -f [int]$__sw.Elapsed.TotalMinutes, $__sw.Elapsed.Seconds }
+function Step($i,$m){ Write-Host ("[{0}/14] ({1}) {2}" -f $i,(El),$m) -ForegroundColor Cyan }
+function Tick($m){ Write-Host ("    - {0}  ({1})" -f $m,(El)) -ForegroundColor DarkGray }
 Write-Host "DiskDetox is scanning. You'll see each step below as it runs; the slow steps can take a few minutes, so leave this window open until it says Done." -ForegroundColor Cyan
 
 function FolderGB($p) {
@@ -85,6 +88,7 @@ $drives = Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" | ForEach-Obje
 
 Step 2 'Sizing your profile folders (one of the slower steps)'
 $profileFolders = Get-ChildItem $env:USERPROFILE -Directory -Force | ForEach-Object {
+  Tick $_.Name
   [PSCustomObject]@{ name = $_.Name; gb = (FolderGB $_.FullName) }
 } | Sort-Object gb -Descending | Select-Object -First 15
 
@@ -138,6 +142,7 @@ Step 7 'Finding your largest files (the slowest step; can take a few minutes on 
 $largestFiles = & {
   Get-ChildItem $env:USERPROFILE -File -Force -Attributes !Offline
   Get-ChildItem $env:USERPROFILE -Directory -Force | Where-Object { $_.Name -ne 'AppData' } | ForEach-Object {
+    Tick $_.Name
     Get-ChildItem $_.FullName -Recurse -File -Force -Attributes !Offline
   }
 } | Where-Object { $_.Length -ge 100MB } |
@@ -155,7 +160,7 @@ $skipRoot = '$Recycle.Bin','System Volume Information','Config.Msi','Recovery','
 $driveFolders = foreach ($d in $drives) {
   $folders = Get-ChildItem ($d.id + '\') -Directory -Force -ErrorAction SilentlyContinue |
     Where-Object { $skipRoot -notcontains $_.Name -and -not $_.Name.StartsWith('$') } |
-    ForEach-Object { [PSCustomObject]@{ name=$_.Name; gb=(FolderGB $_.FullName) } } |
+    ForEach-Object { Tick ($d.id + '\' + $_.Name); [PSCustomObject]@{ name=$_.Name; gb=(FolderGB $_.FullName) } } |
     Sort-Object gb -Descending | Select-Object -First 12
   [PSCustomObject]@{ drive=$d.id; folders=@($folders) }
 }
@@ -281,7 +286,9 @@ $out = [PSCustomObject]@{
 
 Step 14 'Saving your results'
 $json = $out | ConvertTo-Json -Depth 6
-$dest = "$env:USERPROFILE\Desktop\disk-health.json"
+$desk = [Environment]::GetFolderPath('Desktop')                              # respects OneDrive Desktop redirection
+if (-not $desk -or -not (Test-Path $desk)) { $desk = "$env:USERPROFILE\Desktop" }
+$dest = Join-Path $desk 'disk-health.json'
 $json | Out-File -FilePath $dest -Encoding utf8
 try { $json | Set-Clipboard } catch {}
 
