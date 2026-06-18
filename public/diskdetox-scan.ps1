@@ -30,9 +30,10 @@ if (-not $PSBoundParameters.ContainsKey('Redact')) { $Redact = $false }   # when
 $ErrorActionPreference = 'SilentlyContinue'
 
 $__sw=[System.Diagnostics.Stopwatch]::StartNew()
-function El { '{0}:{1:00}' -f [int]$__sw.Elapsed.TotalMinutes, $__sw.Elapsed.Seconds }
+function El { $e=$__sw.Elapsed; '{0}:{1:00}' -f [int][math]::Floor($e.TotalMinutes), $e.Seconds }
 function Step($i,$m){ Write-Host ("[{0}/14] ({1}) {2}" -f $i,(El),$m) -ForegroundColor Cyan }
 function Tick($m){ Write-Host ("    - {0}  ({1})" -f $m,(El)) -ForegroundColor DarkGray }
+function NotJunk($d){ -not (($d.Attributes -band [IO.FileAttributes]::ReparsePoint) -and ($d.Attributes -band [IO.FileAttributes]::System)) }
 Write-Host "DiskDetox is scanning. You'll see each step below as it runs; the slow steps can take a few minutes, so leave this window open until it says Done." -ForegroundColor Cyan
 
 function FolderGB($p) {
@@ -87,7 +88,7 @@ $drives = Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" | ForEach-Obje
 }
 
 Step 2 'Sizing your profile folders (one of the slower steps)'
-$profileFolders = Get-ChildItem $env:USERPROFILE -Directory -Force | ForEach-Object {
+$profileFolders = Get-ChildItem $env:USERPROFILE -Directory -Force | Where-Object { NotJunk $_ } | ForEach-Object {
   Tick $_.Name
   [PSCustomObject]@{ name = $_.Name; gb = (FolderGB $_.FullName) }
 } | Sort-Object gb -Descending | Select-Object -First 15
@@ -104,6 +105,7 @@ $regPaths = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
 $programs = Get-ItemProperty $regPaths |
   Where-Object { $_.DisplayName -and $_.EstimatedSize } |
   Select-Object @{n='name';e={$_.DisplayName}}, @{n='mb';e={[math]::Round($_.EstimatedSize/1024,0)}} |
+  Group-Object name | ForEach-Object { $_.Group | Sort-Object mb -Descending | Select-Object -First 1 } |
   Sort-Object mb -Descending | Select-Object -First 30
 
 Step 5 'Measuring cleanable caches'
@@ -141,7 +143,7 @@ $games = $games | Sort-Object gb -Descending
 Step 7 'Finding your largest files (the slowest step; can take a few minutes on a full drive)'
 $largestFiles = & {
   Get-ChildItem $env:USERPROFILE -File -Force -Attributes !Offline
-  Get-ChildItem $env:USERPROFILE -Directory -Force | Where-Object { $_.Name -ne 'AppData' } | ForEach-Object {
+  Get-ChildItem $env:USERPROFILE -Directory -Force | Where-Object { $_.Name -ne 'AppData' -and (NotJunk $_) } | ForEach-Object {
     Tick $_.Name
     Get-ChildItem $_.FullName -Recurse -File -Force -Attributes !Offline
   }
@@ -159,7 +161,7 @@ Step 8 'Sizing the top folders on every drive (also slow on big drives)'
 $skipRoot = '$Recycle.Bin','System Volume Information','Config.Msi','Recovery','$WinREAgent','$SysReset'
 $driveFolders = foreach ($d in $drives) {
   $folders = Get-ChildItem ($d.id + '\') -Directory -Force -ErrorAction SilentlyContinue |
-    Where-Object { $skipRoot -notcontains $_.Name -and -not $_.Name.StartsWith('$') } |
+    Where-Object { $skipRoot -notcontains $_.Name -and -not $_.Name.StartsWith('$') -and (NotJunk $_) } |
     ForEach-Object { Tick ($d.id + '\' + $_.Name); [PSCustomObject]@{ name=$_.Name; gb=(FolderGB $_.FullName) } } |
     Sort-Object gb -Descending | Select-Object -First 12
   [PSCustomObject]@{ drive=$d.id; folders=@($folders) }

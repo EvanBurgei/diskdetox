@@ -665,9 +665,10 @@ param([switch]$Redact)
 if (-not $PSBoundParameters.ContainsKey('Redact')) { $Redact = __REDACT__ }
 $ErrorActionPreference = 'SilentlyContinue'
 $__sw=[System.Diagnostics.Stopwatch]::StartNew()
-function El { '{0}:{1:00}' -f [int]$__sw.Elapsed.TotalMinutes, $__sw.Elapsed.Seconds }
+function El { $e=$__sw.Elapsed; '{0}:{1:00}' -f [int][math]::Floor($e.TotalMinutes), $e.Seconds }
 function Step($i,$m){ Write-Host ("[{0}/14] ({1}) {2}" -f $i,(El),$m) -ForegroundColor Cyan }
 function Tick($m){ Write-Host ("    - {0}  ({1})" -f $m,(El)) -ForegroundColor DarkGray }
+function NotJunk($d){ -not (($d.Attributes -band [IO.FileAttributes]::ReparsePoint) -and ($d.Attributes -band [IO.FileAttributes]::System)) }
 Write-Host "DiskDetox is scanning. You'll see each step below as it runs; the slow steps can take a few minutes, so leave this window open until it says Done." -ForegroundColor Cyan
 function FolderGB($p){ if(Test-Path $p){ $s=(Get-ChildItem $p -Recurse -File -Force -Attributes !Offline | Measure-Object Length -Sum).Sum; if($null -eq $s){0}else{[math]::Round($s/1GB,2)} } else {0} }
 function ExeName($cmd){ if(-not $cmd){return $null} $c=([string]$cmd).Trim(); if($c.StartsWith('"')){ $c=$c.Substring(1); $i=$c.IndexOf('"'); if($i -ge 0){$c=$c.Substring(0,$i)} } else { $sp=$c.IndexOf(' '); if($sp -gt 0){$c=$c.Substring(0,$sp)} } try{([System.IO.Path]::GetFileName($c)).ToLowerInvariant()}catch{$null} }
@@ -676,12 +677,12 @@ function LocCat($p){ if(-not $p){return $null} $lp=$p.ToLowerInvariant(); if($lp
 Step 1 'Measuring your drives'
 $drives = Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" | ForEach-Object { [PSCustomObject]@{ id=$_.DeviceID; totalGB=[math]::Round($_.Size/1GB,1); freeGB=[math]::Round($_.FreeSpace/1GB,1); pctFree=[math]::Round($_.FreeSpace/$_.Size*100,0) } }
 Step 2 'Sizing your profile folders (one of the slower steps)'
-$profileFolders = Get-ChildItem $env:USERPROFILE -Directory -Force | ForEach-Object { Tick $_.Name; [PSCustomObject]@{ name=$_.Name; gb=(FolderGB $_.FullName) } } | Sort-Object gb -Descending | Select-Object -First 15
+$profileFolders = Get-ChildItem $env:USERPROFILE -Directory -Force | Where-Object { NotJunk $_ } | ForEach-Object { Tick $_.Name; [PSCustomObject]@{ name=$_.Name; gb=(FolderGB $_.FullName) } } | Sort-Object gb -Descending | Select-Object -First 15
 Step 3 'Checking AppData caches'
 $appLocal = Get-ChildItem $env:LOCALAPPDATA -Directory -Force | ForEach-Object { [PSCustomObject]@{ name=$_.Name; gb=(FolderGB $_.FullName) } } | Sort-Object gb -Descending | Select-Object -First 12
 Step 4 'Reading your installed programs'
 $regPaths='HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*','HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*','HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*'
-$programs = Get-ItemProperty $regPaths | Where-Object { $_.DisplayName -and $_.EstimatedSize } | Select-Object @{n='name';e={$_.DisplayName}}, @{n='mb';e={[math]::Round($_.EstimatedSize/1024,0)}} | Sort-Object mb -Descending | Select-Object -First 30
+$programs = Get-ItemProperty $regPaths | Where-Object { $_.DisplayName -and $_.EstimatedSize } | Select-Object @{n='name';e={$_.DisplayName}}, @{n='mb';e={[math]::Round($_.EstimatedSize/1024,0)}} | Group-Object name | ForEach-Object { $_.Group | Sort-Object mb -Descending | Select-Object -First 1 } | Sort-Object mb -Descending | Select-Object -First 30
 Step 5 'Measuring cleanable caches'
 $cacheDefs=@(@{name='User Temp';path=$env:TEMP;safe=$true},@{name='Windows Temp';path='C:\Windows\Temp';safe=$true},@{name='Windows Update Cache';path='C:\Windows\SoftwareDistribution\Download';safe=$true},@{name='Chrome cache';path="$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Cache";safe=$true},@{name='Edge cache';path="$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Cache";safe=$true},@{name='Downloads';path="$env:USERPROFILE\Downloads";safe=$false},@{name='Recycle Bin';path='C:\$Recycle.Bin';safe=$true},@{name='Windows.old (previous Windows)';path='C:\Windows.old';safe=$false})
 $caches = foreach($c in $cacheDefs){ [PSCustomObject]@{ name=$c.name; gb=(FolderGB $c.path); path=$c.path; safe=$c.safe } }
@@ -690,10 +691,10 @@ $gameRoots='C:\Program Files (x86)\Steam\steamapps\common','C:\Program Files\Epi
 $games = foreach($r in $gameRoots){ if(Test-Path $r){ Get-ChildItem $r -Directory -Force | ForEach-Object { [PSCustomObject]@{ name=$_.Name; gb=(FolderGB $_.FullName); path=$_.FullName } } } }
 $games = $games | Sort-Object gb -Descending
 Step 7 'Finding your largest files (the slowest step; can take a few minutes on a full drive)'
-$largestFiles = & { Get-ChildItem $env:USERPROFILE -File -Force -Attributes !Offline; Get-ChildItem $env:USERPROFILE -Directory -Force | Where-Object { $_.Name -ne 'AppData' } | ForEach-Object { Tick $_.Name; Get-ChildItem $_.FullName -Recurse -File -Force -Attributes !Offline } } | Where-Object { $_.Length -ge 100MB } | Sort-Object Length -Descending | Select-Object -First 20 | ForEach-Object { [PSCustomObject]@{ name=$_.Name; gb=[math]::Round($_.Length/1GB,2); path=$_.DirectoryName; ext=$_.Extension.TrimStart('.').ToLowerInvariant() } }
+$largestFiles = & { Get-ChildItem $env:USERPROFILE -File -Force -Attributes !Offline; Get-ChildItem $env:USERPROFILE -Directory -Force | Where-Object { $_.Name -ne 'AppData' -and (NotJunk $_) } | ForEach-Object { Tick $_.Name; Get-ChildItem $_.FullName -Recurse -File -Force -Attributes !Offline } } | Where-Object { $_.Length -ge 100MB } | Sort-Object Length -Descending | Select-Object -First 20 | ForEach-Object { [PSCustomObject]@{ name=$_.Name; gb=[math]::Round($_.Length/1GB,2); path=$_.DirectoryName; ext=$_.Extension.TrimStart('.').ToLowerInvariant() } }
 Step 8 'Sizing the top folders on every drive (also slow on big drives)'
 $skipRoot=@('$Recycle.Bin','System Volume Information','Config.Msi','Recovery','$WinREAgent','$SysReset')
-$driveFolders = foreach($d in $drives){ $folders = Get-ChildItem ($d.id + '\') -Directory -Force -ErrorAction SilentlyContinue | Where-Object { $skipRoot -notcontains $_.Name -and -not $_.Name.StartsWith('$') } | ForEach-Object { Tick ($d.id + '\' + $_.Name); [PSCustomObject]@{ name=$_.Name; gb=(FolderGB $_.FullName) } } | Sort-Object gb -Descending | Select-Object -First 12; [PSCustomObject]@{ drive=$d.id; folders=@($folders) } }
+$driveFolders = foreach($d in $drives){ $folders = Get-ChildItem ($d.id + '\') -Directory -Force -ErrorAction SilentlyContinue | Where-Object { $skipRoot -notcontains $_.Name -and -not $_.Name.StartsWith('$') -and (NotJunk $_) } | ForEach-Object { Tick ($d.id + '\' + $_.Name); [PSCustomObject]@{ name=$_.Name; gb=(FolderGB $_.FullName) } } | Sort-Object gb -Descending | Select-Object -First 12; [PSCustomObject]@{ drive=$d.id; folders=@($folders) } }
 Step 9 'Measuring Windows system files'
 $system=[PSCustomObject]@{ hiberfilGB=[math]::Round(((Get-Item C:\hiberfil.sys -Force).Length)/1GB,2); pagefileGB=[math]::Round(((Get-Item C:\pagefile.sys -Force).Length)/1GB,2); driverStoreGB=(FolderGB 'C:\Windows\System32\DriverStore\FileRepository') }
 Step 10 'Listing what starts up with Windows'
