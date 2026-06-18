@@ -367,6 +367,11 @@
 
   <!-- BREAKDOWN -->
   <section class="tabpanel hidden" id="panel-breakdown" role="tabpanel" aria-labelledby="tab-breakdown" data-panel="breakdown">
+    <div class="panel" id="treemapPanel">
+      <h2>Disk map</h2>
+      <p class="muted" style="font-size:13px">A picture of your drive: bigger blocks use more space. Top-level folders only, biggest first. Hover a block for its exact size.</p>
+      <div id="treemap"></div>
+    </div>
     <div class="panel">
       <h2>Where your space went</h2>
       <h3>Top folders in your user profile</h3>
@@ -381,11 +386,16 @@
     </div>
     <div class="panel" id="filesPanel">
       <h2>Biggest individual files</h2>
-      <p class="muted" style="font-size:13px">The largest single files in your profile (≥100&nbsp;MB, skips app data). This looks in your user profile only, not the whole drive, so a big file on another drive or in a system folder won't show here. These are <em>your</em> files, so look before you delete. Open the folder, confirm it's junk, then remove it.</p>
+      <p class="muted" style="font-size:13px">The largest single files in your profile (≥100&nbsp;MB, skips app data). This looks in your user profile and on your other fixed drives (it skips Windows system folders), biggest first. These are <em>your</em> files, so look before you delete. Open the folder, confirm it's junk, then remove it.</p>
       <table>
         <thead><tr><th>File</th><th class="num">Size</th><th>Location</th></tr></thead>
         <tbody id="fileRows"></tbody>
       </table>
+    </div>
+    <div class="panel hidden" id="dupPanel">
+      <h2>Possible duplicate files</h2>
+      <p class="muted" id="dupSummary" style="font-size:13px"></p>
+      <div id="dupRows"></div>
     </div>
   </section>
 
@@ -755,7 +765,7 @@ $gameRoots='C:\Program Files (x86)\Steam\steamapps\common','C:\Program Files\Epi
 $games = foreach($r in $gameRoots){ if(Test-Path $r){ Get-ChildItem $r -Directory -Force | ForEach-Object { [PSCustomObject]@{ name=$_.Name; gb=(FolderGB $_.FullName); path=$_.FullName } } } }
 $games = $games | Sort-Object gb -Descending
 Step 7 'Finding your largest files (the slowest step; can take a few minutes on a full drive)'
-$largestFiles = & { Get-ChildItem $env:USERPROFILE -File -Force -Attributes !Offline; Get-ChildItem $env:USERPROFILE -Directory -Force | Where-Object { $_.Name -ne 'AppData' -and (NotJunk $_) } | ForEach-Object { Tick $_.Name; Get-ChildItem $_.FullName -Recurse -File -Force -Attributes !Offline } } | Where-Object { $_.Length -ge 100MB } | Sort-Object Length -Descending | Select-Object -First 20 | ForEach-Object { [PSCustomObject]@{ name=$_.Name; gb=[math]::Round($_.Length/1GB,2); path=$_.DirectoryName; ext=$_.Extension.TrimStart('.').ToLowerInvariant() } }
+$largestFiles = & { Get-ChildItem $env:USERPROFILE -File -Force -Attributes !Offline; Get-ChildItem $env:USERPROFILE -Directory -Force | Where-Object { $_.Name -ne 'AppData' -and (NotJunk $_) } | ForEach-Object { Tick $_.Name; Get-ChildItem $_.FullName -Recurse -File -Force -Attributes !Offline }; foreach($dd in $drives){ if($dd.id.ToUpper()[0] -ne 'C'){ Get-ChildItem ($dd.id+'\') -Directory -Force -ErrorAction SilentlyContinue | Where-Object { -not $_.Name.StartsWith('$') -and (NotJunk $_) } | ForEach-Object { Tick ($dd.id+'\'+$_.Name); Get-ChildItem $_.FullName -Recurse -File -Force -Attributes !Offline -ErrorAction SilentlyContinue } } } } | Where-Object { $_.Length -ge 100MB } | Sort-Object Length -Descending | Select-Object -First 40 | ForEach-Object { [PSCustomObject]@{ name=$_.Name; gb=[math]::Round($_.Length/1GB,2); path=$_.DirectoryName; ext=$_.Extension.TrimStart('.').ToLowerInvariant() } }
 Step 8 'Sizing the top folders on every drive (also slow on big drives)'
 $skipRoot=@('$Recycle.Bin','System Volume Information','Config.Msi','Recovery','$WinREAgent','$SysReset')
 $driveFolders = foreach($d in $drives){ $folders = Get-ChildItem ($d.id + '\') -Directory -Force -ErrorAction SilentlyContinue | Where-Object { $skipRoot -notcontains $_.Name -and -not $_.Name.StartsWith('$') -and (NotJunk $_) } | ForEach-Object { Tick ($d.id + '\' + $_.Name); [PSCustomObject]@{ name=$_.Name; gb=(FolderGB $_.FullName) } } | Sort-Object gb -Descending | Select-Object -First 12; [PSCustomObject]@{ drive=$d.id; folders=@($folders) } }
@@ -834,6 +844,7 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
       {name:"family-reunion-2025.mp4",gb:3.1,path:"Videos",ext:"mp4"},
       {name:"Ubuntu-dev.vhdx",gb:2.4,path:"Documents\\VMs",ext:"vhdx"},
       {name:"project-backup-final.zip",gb:1.6,path:"Desktop",ext:"zip"},
+      {name:"project-backup-final.zip",gb:1.6,path:"Documents\\Backups",ext:"zip"},
       {name:"podcast-master.wav",gb:0.9,path:"Music\\Projects",ext:"wav"}
     ],
     driveFolders:[
@@ -1015,6 +1026,41 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     }
   }
 
+  // ---------- duplicate files (render-side, from the biggest-files list) ----------
+  function findDuplicates(data){
+    if(data.redacted) return [];
+    var files=arr(data.largestFiles).filter(function(f){return (f.gb||0)>0 && f.name && f.path;});
+    var groups={};
+    files.forEach(function(f){ var key=(f.gb||0).toFixed(2)+"|"+String(f.name).toLowerCase(); (groups[key]=groups[key]||[]).push(f); });
+    var dups=[];
+    Object.keys(groups).forEach(function(k){
+      var seen={}, uniq=groups[k].filter(function(f){ var p=String(f.path||"")+"|"+f.name; if(seen[p]) return false; seen[p]=1; return true; });
+      if(uniq.length>=2) dups.push({name:uniq[0].name, gb:uniq[0].gb||0, count:uniq.length, paths:uniq.map(function(f){return f.path;}), wasted:(uniq[0].gb||0)*(uniq.length-1)});
+    });
+    dups.sort(function(a,b){return b.wasted-a.wasted;});
+    return dups;
+  }
+  function dupRender(data){
+    var host=$("dupRows"), panel=$("dupPanel"); if(!host||!panel) return; host.innerHTML="";
+    var dups=findDuplicates(data);
+    panel.classList.toggle("hidden", dups.length===0);
+    if(!dups.length) return;
+    var wasted=dups.reduce(function(t,d){return t+d.wasted;},0);
+    $("dupSummary").textContent="The same file name and size shows up in more than one place, so these are probably copies. Deleting the extras could free about "+gb(wasted)+". Keep one, and check each before you delete.";
+    dups.forEach(function(d){
+      var card=el("div","fix"), head=el("div","head");
+      head.appendChild(el("span","t",d.name));
+      head.appendChild(el("span","revtag rev-n","Permanent"));
+      var gn=el("span","gain","~"+gb(d.wasted)+" wasted"); gn.style.marginLeft="6px"; head.appendChild(gn);
+      card.appendChild(head);
+      card.appendChild(el("div","why", d.count+" copies of this "+gb(d.gb)+" file:"));
+      var ul=document.createElement("ul"); ul.style.margin="4px 0 0"; ul.style.paddingLeft="20px"; ul.style.fontSize="12.5px"; ul.style.color="var(--muted)";
+      d.paths.forEach(function(p){ ul.appendChild(el("li",null,p||"(path hidden)")); });
+      card.appendChild(ul);
+      host.appendChild(card);
+    });
+  }
+
   // ---------- Start here: guided plan ----------
   // Programs that BREAK things if removed: drivers, runtimes, Windows components. Render-side guard, never deletes.
   var KEEP_RE=/driver|nvidia|intel\(r\)|realtek|graphics|chipset|\baudio\b|redistributab|visual c\+\+|vc_redist|webview2|\.net|directx|\bruntime\b|software development kit|windows sdk|microsoft edge|onedrive/i;
@@ -1052,9 +1098,11 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     t1.push(planAct({title:"Turn on Storage Sense",risk:"safe",riskLabel:"Safe",gb:null,sub:"Let Windows clear junk and empty the Recycle Bin on a schedule, so you don't fill up again.",how:{label:"See how",fn:go("reclaim")}}));
 
     if(downloads && (downloads.gb||0)>0.05) t2.push(planAct({title:"Review your Downloads folder",risk:"review",riskLabel:"Review",gb:downloads.gb,rev:false,sub:"These are your files. Clear out old installers and anything you're done with.",note:"Open Downloads in File Explorer"}));
-    if(files.length) t2.push(planAct({title:"Check your biggest files",risk:"review",riskLabel:"Review",gb:filesGB,rev:false,sub:"Like "+files[0].name+" ("+gb(files[0].gb)+"). Move to the cloud or delete what you recognize. These are from your profile, not the whole drive.",how:{label:"See your biggest files",fn:go("breakdown")}}));
+    if(files.length) t2.push(planAct({title:"Check your biggest files",risk:"review",riskLabel:"Review",gb:filesGB,rev:false,sub:"Like "+files[0].name+" ("+gb(files[0].gb)+"). Move to the cloud or delete what you recognize. These cover your profile and your other drives, biggest first.",how:{label:"See your biggest files",fn:go("breakdown")}}));
     if(winold && (winold.gb||0)>0.1) t2.push(planAct({title:"Remove the previous Windows install",risk:"review",riskLabel:"Review",gb:winold.gb,rev:false,sub:"Windows.old, kept after an upgrade. Safe to delete once your current Windows works fine.",how:{label:"See the command",fn:go("reclaim")}}));
     if(cloud) t2.push(planAct({title:"Free up space from "+cloud.name,risk:"review",riskLabel:"Review",gb:cloud.gb,sub:"Make synced files online-only: they stay safe in the cloud and download when you open them. Frees local space with no data loss.",note:"Right-click the "+cloud.name+" folder, then Free up space"}));
+    var dupWaste=findDuplicates(data).reduce(function(t,d){return t+d.wasted;},0);
+    if(dupWaste>0.3) t2.push(planAct({title:"Delete duplicate files",risk:"review",riskLabel:"Review",rev:false,gb:dupWaste,sub:"The same file is copied in more than one place. Keep one, delete the extras.",how:{label:"See duplicates",fn:go("breakdown")}}));
     arr(data.drives).filter(function(d){ return d.id && c && d.id.toUpperCase().charAt(0)!==c.id.toUpperCase().charAt(0) && d.totalGB && (100-(d.pctFree||0))>=80; }).forEach(function(d){
       t2.push(planAct({title:"Check your "+d.id+" drive ("+Math.round(100-(d.pctFree||0))+"% full)",risk:"review",riskLabel:"Review",rev:null,gb:null,sub:"This drive is filling up too. See its biggest folders, and move or clear what you don't need.",how:{label:"See what's on it",fn:go("breakdown")}}));
     });
@@ -1106,6 +1154,64 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
       var rb=el("button","btn primary","Re-scan now"); rb.addEventListener("click",go("scan")); loop.appendChild(rb);
       host.appendChild(loop);
     }
+  }
+
+  // ---------- disk map (squarified treemap) ----------
+  function squarify(items, W, H){
+    var total=items.reduce(function(s,it){return s+(it.value||0);},0)||1;
+    var scale=(W*H)/total;
+    var data=items.map(function(it){ return {it:it, area:(it.value||0)*scale}; });
+    var out=[], x=0,y=0,w=W,h=H, i=0;
+    function worst(row,len){ if(!row.length) return Infinity; var s=0,mx=0,mn=Infinity; row.forEach(function(r){s+=r.area; if(r.area>mx)mx=r.area; if(r.area<mn)mn=r.area;}); if(s<=0) return Infinity; return Math.max((len*len*mx)/(s*s),(s*s)/(len*len*mn)); }
+    while(i<data.length){
+      var len=Math.min(w,h)||1, row=[];
+      while(i<data.length){
+        if(!row.length || worst(row.concat([data[i]]),len) <= worst(row,len)){ row.push(data[i]); i++; } else break;
+      }
+      var rowArea=row.reduce(function(a,r){return a+r.area;},0);
+      if(w>=h){
+        var cw2=(rowArea/h)||0, oy=y;
+        row.forEach(function(r){ var rh=cw2>0?(r.area/cw2):0; out.push({it:r.it,x:x,y:oy,w:cw2,h:rh}); oy+=rh; });
+        x+=cw2; w-=cw2;
+      } else {
+        var rh2=(rowArea/w)||0, ox=x;
+        row.forEach(function(r){ var rw=rh2>0?(r.area/rh2):0; out.push({it:r.it,x:ox,y:y,w:rw,h:rh2}); ox+=rw; });
+        y+=rh2; h-=rh2;
+      }
+    }
+    return out;
+  }
+  function treemap(data){
+    var host=$("treemap"); if(!host) return; host.innerHTML="";
+    var c=arr(data.drives).filter(function(d){return d.id && d.id.toUpperCase().indexOf("C")===0;})[0] || arr(data.drives)[0];
+    var grp=c?arr(data.driveFolders).filter(function(g){return (g.drive||"").toUpperCase().charAt(0)===(c.id||"").toUpperCase().charAt(0);})[0]:null;
+    var folders=grp?arr(grp.folders).filter(function(f){return (f.gb||0)>0;}).slice().sort(function(a,b){return (b.gb||0)-(a.gb||0);}):[];
+    $("treemapPanel").classList.toggle("hidden", !c || !c.totalGB || !folders.length);
+    if(!c || !c.totalGB || !folders.length) return;
+    var total=c.totalGB, free=Math.max(0,c.freeGB||0), used=Math.max(0,total-free);
+    var top=folders.slice(0,8), topSum=top.reduce(function(t,f){return t+(f.gb||0);},0);
+    var other=Math.max(0,used-topSum), shades=[100,86,72,60,48,38,30,22];
+    var items=[];
+    top.forEach(function(f,i){ items.push({name:f.name, value:f.gb||0, c:"color-mix(in srgb, var(--accent) "+shades[i]+"%, var(--surface))"}); });
+    if(other>0.5) items.push({name:"Other & system", value:other, c:"color-mix(in srgb, var(--muted) 42%, var(--surface))"});
+    if(free>0.5) items.push({name:"Free", value:free, c:"color-mix(in srgb, var(--green) 30%, var(--surface))"});
+    var W=1000,H=420, ns="http://www.w3.org/2000/svg";
+    var rects=squarify(items, W, H);
+    var svg=document.createElementNS(ns,"svg");
+    svg.setAttribute("viewBox","0 0 "+W+" "+H); svg.setAttribute("width","100%"); svg.setAttribute("role","img"); svg.setAttribute("aria-label","Treemap of the "+c.id+" drive by folder size");
+    svg.style.display="block"; svg.style.borderRadius="10px";
+    rects.forEach(function(r){
+      var rect=document.createElementNS(ns,"rect");
+      rect.setAttribute("x",r.x+1); rect.setAttribute("y",r.y+1); rect.setAttribute("width",Math.max(0,r.w-2)); rect.setAttribute("height",Math.max(0,r.h-2)); rect.setAttribute("rx","3");
+      rect.style.fill=r.it.c; rect.style.stroke="var(--bg)"; rect.style.strokeWidth="1";
+      var ttl=document.createElementNS(ns,"title"); ttl.textContent=r.it.name+" · "+gb(r.it.value); rect.appendChild(ttl);
+      svg.appendChild(rect);
+      if(r.w>74 && r.h>26){
+        var t1=document.createElementNS(ns,"text"); t1.setAttribute("x",r.x+9); t1.setAttribute("y",r.y+21); t1.setAttribute("font-size","15"); t1.setAttribute("font-weight","600"); t1.style.fill="var(--txt)"; t1.textContent=r.it.name.length>20?r.it.name.slice(0,19)+"…":r.it.name; svg.appendChild(t1);
+        if(r.h>44){ var t2=document.createElementNS(ns,"text"); t2.setAttribute("x",r.x+9); t2.setAttribute("y",r.y+39); t2.setAttribute("font-size","13"); t2.style.fill="var(--muted)"; t2.textContent=gb(r.it.value); svg.appendChild(t2); }
+      }
+    });
+    host.appendChild(svg);
   }
 
   // ---------- drive composition: where the whole drive went (storage context) ----------
@@ -1744,7 +1850,9 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     bars("folderBars", data.profileFolders);
     bars("appBars", data.appDataLocal);
     driveFolders(data);
+    treemap(data);
     fileRows(data);
+    dupRender(data);
     cacheRows(data);
     programRows(data);
     var games=arr(data.games);

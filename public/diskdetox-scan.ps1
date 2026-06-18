@@ -147,8 +147,9 @@ $largestFiles = & {
     Tick $_.Name
     Get-ChildItem $_.FullName -Recurse -File -Force -Attributes !Offline
   }
+  foreach($dd in $drives){ if($dd.id.ToUpper()[0] -ne 'C'){ Get-ChildItem ($dd.id+'\') -Directory -Force -ErrorAction SilentlyContinue | Where-Object { -not $_.Name.StartsWith('$') -and (NotJunk $_) } | ForEach-Object { Tick ($dd.id+'\'+$_.Name); Get-ChildItem $_.FullName -Recurse -File -Force -Attributes !Offline -ErrorAction SilentlyContinue } } }
 } | Where-Object { $_.Length -ge 100MB } |
-  Sort-Object Length -Descending | Select-Object -First 20 | ForEach-Object {
+  Sort-Object Length -Descending | Select-Object -First 40 | ForEach-Object {
     [PSCustomObject]@{
       name = $_.Name
       gb   = [math]::Round($_.Length / 1GB, 2)
