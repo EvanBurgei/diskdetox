@@ -412,6 +412,7 @@
     <div class="panel">
       <h2>Suggested fixes (ranked)</h2>
       <p class="muted" style="font-size:13px">Each command is copy-and-run in PowerShell. <span class="badge safe">Safe</span> = junk you won't miss. <span class="badge review">Review</span> = check before running. <span class="badge adv">Advanced</span> = needs Admin or changes system behavior.</p>
+      <p class="muted" style="font-size:12.5px; margin:0 0 6px">To run an <strong>Advanced</strong> command, open PowerShell <strong>as administrator</strong>: click Start, type "PowerShell", right-click <span class="mono">Windows PowerShell</span>, and choose "Run as administrator". Without that, Admin commands fail with an "elevated permissions" or "Access denied" error.</p>
       <div id="fixes"></div>
     </div>
   </section>
@@ -488,6 +489,7 @@
     <div class="panel">
       <h2>Speed steps (ranked)</h2>
       <p class="muted" style="font-size:13px">Each one is copy-and-run in PowerShell or a one-click Windows screen. <span class="badge safe">Safe</span> = a reversible toggle. <span class="badge review">Review</span> = check before you run it. <span class="badge adv">Advanced</span> = needs Admin.</p>
+      <p class="muted" style="font-size:12.5px; margin:0 0 6px">For an <strong>Admin</strong> command, open PowerShell <strong>as administrator</strong> (click Start, type "PowerShell", right-click it, choose "Run as administrator").</p>
       <div id="speedFixes"></div>
     </div>
   </section>
@@ -1437,8 +1439,8 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
       why:"Frees the hibernation file ("+gb(s.hiberfilGB)+"). Reversible with powercfg /h on. You lose Fast Startup, but normal sleep still works.",
       cmd:'powercfg /h off   # run as Admin'}); }
     list.push({t:"Make OneDrive files online-only",risk:"review",
-      why:"Frees local space by keeping cloud copies only; files download on demand. Great if OneDrive is one of your biggest folders.",
-      cmd:'# Right-click the OneDrive folder > "Free up space". Or:\nattrib +U -P "$env:USERPROFILE\\OneDrive\\*" /s'});
+      why:"Frees local space by keeping cloud copies only; files download again when you open them. This is a few clicks in File Explorer, not a command. Great if OneDrive is one of your biggest folders.",
+      cmd:'# A few clicks, not a command:\n# 1. Open File Explorer, find OneDrive in the left sidebar.\n# 2. Right-click it and choose "Free up space".\n# Storage Sense can also do this automatically for older files.'});
     list.push({t:"Move big games/files to another drive",risk:"review",
       why:"If you have a D: drive with room, move large games there instead of deleting them. Most launchers (Steam, EA) support moving an install.",
       cmd:'explorer shell:MyComputerFolder   # see your drives and free space'});
@@ -1658,13 +1660,13 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
         why:"Opens Apps & features. Look for "+bloatHits.slice(0,3).join(", ")+(bloatHits.length>3?", and the others flagged above":"")+". Uninstall only what you don't use.",
         cmd:'start ms-settings:appsfeatures'});
     }
-    var svc = arr(rows).filter(function(r){return r.s && r.s.source==="Service" && r.s.svc;})[0];
+    var svc = arr(rows).filter(function(r){return r.s && r.s.source==="Service" && r.s.svc && startupVerdict(r.s).b==="off";})[0];
     if(svc){
       list.push({t:"Set “"+svc.s.name+"” to start only when needed",risk:"adv",
         why:"This third-party service starts with Windows. Setting it to Manual stops it auto-starting without removing it. Reversible, and it needs an Admin PowerShell.",
         cmd:'Set-Service -Name "'+svc.s.svc+'" -StartupType Manual   # run as Admin; undo with -StartupType Automatic'});
     }
-    var task = arr(rows).filter(function(r){return r.s && r.s.source==="Scheduled task" && r.s.name;})[0];
+    var task = arr(rows).filter(function(r){return r.s && r.s.source==="Scheduled task" && r.s.name && startupVerdict(r.s).b==="off";})[0];
     if(task){
       var tp = (task.s.taskPath || "\\");
       list.push({t:"Stop “"+task.s.name+"” running at sign-in",risk:"review",
