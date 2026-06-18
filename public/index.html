@@ -146,6 +146,31 @@
   .badge.safe{background:color-mix(in srgb, var(--green) 16%, transparent); color:color-mix(in srgb, var(--green) 60%, var(--txt))}
   .badge.review{background:color-mix(in srgb, var(--amber) 18%, transparent); color:var(--amber)}
   .badge.adv{background:color-mix(in srgb, var(--red) 16%, transparent); color:color-mix(in srgb, var(--red) 60%, var(--txt))}
+  .badge.keep{background:color-mix(in srgb, var(--accent) 16%, transparent); color:var(--accent)}
+  /* start-here guided plan */
+  .plan{display:flex; flex-direction:column; gap:9px}
+  .planlegend{display:flex; flex-wrap:wrap; gap:8px 16px; font-size:12.5px; color:var(--muted); margin:2px 0 14px}
+  .tierhead{display:flex; align-items:center; gap:10px; margin:18px 0 2px}
+  .tierhead.first{margin-top:4px}
+  .tiernum{width:23px; height:23px; border-radius:50%; background:var(--chip); color:var(--txt); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px; flex:0 0 auto}
+  .tierhead .lbl{font-weight:700}
+  .tiertot{margin-left:auto; font-size:13px; color:var(--muted)}
+  .plan-act{display:flex; flex-wrap:wrap; align-items:center; gap:7px 10px; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:11px 14px}
+  .plan-act .t{font-weight:700}
+  .plan-act .gain{font-size:11.5px; font-weight:700; padding:2px 9px; border-radius:999px; background:var(--chip); color:var(--txt)}
+  .plan-act .sub{flex-basis:100%; font-size:13px; color:var(--muted); margin-top:1px}
+  .plan-act .how{margin-left:auto}
+  .plan-act .how .btn{padding:5px 11px; font-size:12.5px}
+  .plan-act .note{margin-left:auto; font-size:12.5px; color:var(--muted)}
+  .ceiling{background:var(--chip); border:1px solid var(--line); border-radius:10px; padding:13px 16px; margin-top:16px; font-size:13.5px; line-height:1.55; color:var(--muted)}
+  .ceiling b{color:var(--txt)}
+  /* drive composition (storage context) */
+  .comptitle{font-size:13px; color:var(--muted); margin:8px 0 0}
+  .compbar{display:flex; height:26px; border-radius:6px; overflow:hidden; border:1px solid var(--line); margin:10px 0 10px}
+  .compbar > span{display:block; height:100%; min-width:2px}
+  .complegend{display:flex; flex-wrap:wrap; gap:6px 16px; font-size:12.5px}
+  .complegend .it{display:flex; align-items:center; gap:7px}
+  .complegend .sw{width:11px; height:11px; border-radius:3px; flex:0 0 auto; border:1px solid color-mix(in srgb, var(--txt) 14%, transparent)}
 
   /* fixes */
   .fix{border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin:0 0 12px; background:var(--panel2)}
@@ -291,14 +316,14 @@
 
   <!-- TABS -->
   <div class="tabs" role="tablist" aria-label="Sections">
-    <button class="tab active" role="tab" id="tab-dashboard" data-tab="dashboard" aria-controls="panel-dashboard" aria-selected="true">Dashboard</button>
+    <button class="tab active" role="tab" id="tab-dashboard" data-tab="dashboard" aria-controls="panel-dashboard" aria-selected="true">Start here</button>
+    <button class="tab" role="tab" id="tab-scan" data-tab="scan" aria-controls="panel-scan" aria-selected="false" tabindex="-1">Scan</button>
     <button class="tab" role="tab" id="tab-breakdown" data-tab="breakdown" aria-controls="panel-breakdown" aria-selected="false" tabindex="-1">Breakdown</button>
     <button class="tab" role="tab" id="tab-reclaim" data-tab="reclaim" aria-controls="panel-reclaim" aria-selected="false" tabindex="-1">Reclaim</button>
-    <button class="tab" role="tab" id="tab-programs" data-tab="programs" aria-controls="panel-programs" aria-selected="false" tabindex="-1">Programs</button>
+    <button class="tab" role="tab" id="tab-programs" data-tab="programs" aria-controls="panel-programs" aria-selected="false" tabindex="-1">Apps &amp; games</button>
     <button class="tab" role="tab" id="tab-system" data-tab="system" aria-controls="panel-system" aria-selected="false" tabindex="-1">System</button>
     <button class="tab" role="tab" id="tab-startup" data-tab="startup" aria-controls="panel-startup" aria-selected="false" tabindex="-1">Startup</button>
     <button class="tab" role="tab" id="tab-security" data-tab="security" aria-controls="panel-security" aria-selected="false" tabindex="-1">Security</button>
-    <button class="tab" role="tab" id="tab-scan" data-tab="scan" aria-controls="panel-scan" aria-selected="false" tabindex="-1">Scan</button>
   </div>
 
   <div id="demoBanner" class="demo-banner hidden">
@@ -311,20 +336,25 @@
   <section class="tabpanel" id="panel-dashboard" role="tabpanel" aria-labelledby="tab-dashboard" data-panel="dashboard">
     <div id="savings" class="savings hidden"></div>
     <div id="trend" class="trend hidden"></div>
-    <div class="kpis" id="kpis"></div>
     <div class="panel">
       <div class="panelhead">
-        <h2>Drive health</h2>
+        <h2>Start here</h2>
         <button class="btn" id="downloadReport" type="button">Download report</button>
       </div>
-      <div class="row">
-        <div class="col">
-          <div class="gauges" id="gauges"></div>
-        </div>
-        <div class="col">
-          <div class="advisor" id="advisor"></div>
-        </div>
+      <p class="muted" style="font-size:13px; margin:0 0 8px">Your scan, turned into an ordered to-do list. Work top to bottom. Green is safe, you can't break anything.</p>
+      <div class="planlegend">
+        <span><span class="badge safe">Safe</span> no risk</span>
+        <span><span class="badge review">Review</span> glance first</span>
+        <span><span class="badge adv">Expert</span> needs care</span>
+        <span><span class="badge keep">Keep</span> don't delete</span>
       </div>
+      <div id="planHost" class="plan"></div>
+    </div>
+    <div class="kpis" id="kpis"></div>
+    <div class="panel">
+      <h2>Drive health</h2>
+      <div class="gauges" id="gauges"></div>
+      <div id="driveComp"></div>
     </div>
   </section>
 
@@ -349,10 +379,6 @@
         <thead><tr><th>File</th><th class="num">Size</th><th>Location</th></tr></thead>
         <tbody id="fileRows"></tbody>
       </table>
-    </div>
-    <div class="panel" id="gamesPanel">
-      <h2>Installed games</h2>
-      <div class="bars" id="gameBars"></div>
     </div>
   </section>
 
@@ -383,6 +409,11 @@
         <thead><tr><th data-sort="name">Program <span class="arrow"></span></th><th class="num" data-sort="mb">Size (MB) <span class="arrow"></span></th></tr></thead>
         <tbody id="programRows"></tbody>
       </table>
+    </div>
+    <div class="panel" id="gamesPanel">
+      <h2>Installed games</h2>
+      <p class="muted" style="font-size:13px">Games found in the common launcher folders (Steam, Epic, EA, GOG). If you're short on space, most launchers can move a game to another drive instead of deleting it.</p>
+      <div class="bars" id="gameBars"></div>
     </div>
   </section>
 
@@ -581,6 +612,7 @@
     <div class="panel">
       <h2>1 · Get the scan</h2>
       <p class="muted" style="font-size:13.5px; margin-bottom:12px">New to this? The <strong>step-by-step walkthrough</strong> above shows every step with pictures. The scan is read-only: it deletes nothing, reads only folder and program <em>names and sizes</em> (never file contents), and nothing leaves your PC.</p>
+      <p class="muted" style="font-size:13px; margin:0 0 12px"><strong>Windows only.</strong> This doesn't work on Mac, Linux, or phones. Either Windows PowerShell or Windows Terminal is fine.</p>
 
       <div style="margin:0 0 14px" class="btn-row">
         <label class="toggle"><input type="checkbox" id="redactToggle"> Redact paths &amp; machine name (applies to both options below)</label>
@@ -590,7 +622,7 @@
       <div class="btn-row" style="margin-bottom:8px">
         <button class="btn primary" type="button" id="downloadPs1">Download diskdetox-scan.ps1</button>
       </div>
-      <p class="muted" style="font-size:13px; margin:0 0 6px">Then open PowerShell (press Start, type "PowerShell"), paste this one line, and press Enter:</p>
+      <p class="muted" style="font-size:13px; margin:0 0 6px">Then open PowerShell or Windows Terminal (press Start, type "PowerShell" or "Terminal"), paste this one line, and press Enter:</p>
       <div class="codebox">
         <button class="btn copybtn" id="copyRunCmd">Copy</button>
         <pre id="runCmd">powershell -ExecutionPolicy Bypass -File "$HOME\Downloads\diskdetox-scan.ps1"</pre>
@@ -618,6 +650,7 @@
         <button class="btn ghost" id="sampleBtn" title="Save an example disk-health.json to try the Load file button or see the format">Download sample (.json)</button>
         <button class="btn ghost" id="clearBtn">Clear my data</button>
       </div>
+      <p class="muted" style="font-size:12.5px; margin:0 0 10px">Where files go: the script (<span class="mono">.ps1</span>) saves to your <strong>Downloads</strong>; your results (<span class="mono">disk-health.json</span>) save to your <strong>Desktop</strong>; a downloaded report saves to Downloads.</p>
       <div id="pasteArea" class="hidden">
         <textarea id="pasteBox" placeholder="Paste the JSON output here, then click Render"></textarea>
         <div class="btn-row" style="margin-top:10px">
@@ -951,6 +984,112 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     }
   }
 
+  // ---------- Start here: guided plan ----------
+  // Programs that BREAK things if removed: drivers, runtimes, Windows components. Render-side guard, never deletes.
+  var KEEP_RE=/driver|nvidia|intel\(r\)|realtek|graphics|chipset|\baudio\b|redistributab|visual c\+\+|vc_redist|webview2|\.net|directx|\bruntime\b|software development kit|windows sdk|microsoft edge|onedrive/i;
+  function isKeepProgram(n){ return KEEP_RE.test(String(n||"")); }
+  function planAct(o){
+    var row=el("div","plan-act");
+    row.appendChild(el("span","t",o.title));
+    row.appendChild(el("span","badge "+o.risk,o.riskLabel));
+    if(o.gb!=null && o.gb>0.005) row.appendChild(el("span","gain","~"+gb(o.gb)));
+    if(o.how){ var w=el("span","how"); var b=el("button","btn ghost",o.how.label); b.addEventListener("click",o.how.fn); w.appendChild(b); row.appendChild(w); }
+    else if(o.note){ row.appendChild(el("span","note",o.note)); }
+    if(o.sub) row.appendChild(el("span","sub",o.sub));
+    return row;
+  }
+  function buildPlan(data){
+    var host=$("planHost"); if(!host) return; host.innerHTML="";
+    var c=arr(data.drives).filter(function(d){return d.id && d.id.toUpperCase().indexOf("C")===0;})[0] || arr(data.drives)[0];
+    var caches=arr(data.caches);
+    function find(re){ return caches.filter(function(x){return re.test(x.name||"");})[0]; }
+    var downloads=find(/download/i), winold=find(/windows\.old/i);
+    var safeJunk=caches.filter(function(x){return x.safe && (x.gb||0)>0;}).reduce(function(t,x){return t+(x.gb||0);},0);
+    var hiber=(data.system&&data.system.hiberfilGB)||0;
+    var files=arr(data.largestFiles).filter(function(f){return (f.gb||0)>=0.3;});
+    var filesGB=files.reduce(function(t,f){return t+(f.gb||0);},0);
+    var appData=arr(data.appDataLocal).filter(function(x){return (x.gb||0)>0.2;});
+    var appTotal=arr(data.appDataLocal).reduce(function(t,x){return t+(x.gb||0);},0);
+    var go=function(n){ return function(){ activateTab(n); }; };
+
+    var t1=[],t2=[],t3=[];
+    if(safeJunk>0.02) t1.push(planAct({title:"Clear temp, caches & Recycle Bin",risk:"safe",riskLabel:"Safe",gb:safeJunk,sub:"Junk Windows and apps rebuild on their own. Nothing you'll miss.",how:{label:"See the safe commands",fn:go("reclaim")}}));
+    if(hiber>0.1) t1.push(planAct({title:"Turn off hibernation",risk:"safe",riskLabel:"Safe",gb:hiber,sub:"Frees the hibernation file. Reversible any time with powercfg /h on.",how:{label:"See the command",fn:go("reclaim")}}));
+    t1.push(planAct({title:"Turn on Storage Sense",risk:"safe",riskLabel:"Safe",gb:null,sub:"Let Windows clear junk and empty the Recycle Bin on a schedule, so you don't fill up again.",how:{label:"See how",fn:go("reclaim")}}));
+
+    if(downloads && (downloads.gb||0)>0.05) t2.push(planAct({title:"Review your Downloads folder",risk:"review",riskLabel:"Review",gb:downloads.gb,sub:"These are your files. Clear out old installers and anything you're done with.",note:"Open Downloads in File Explorer"}));
+    if(files.length) t2.push(planAct({title:"Check your biggest files",risk:"review",riskLabel:"Review",gb:filesGB,sub:"Like "+files[0].name+" ("+gb(files[0].gb)+"). Move to the cloud or delete what you recognize.",how:{label:"See your biggest files",fn:go("breakdown")}}));
+    if(winold && (winold.gb||0)>0.1) t2.push(planAct({title:"Remove the previous Windows install",risk:"review",riskLabel:"Review",gb:winold.gb,sub:"Windows.old, kept after an upgrade. Safe to delete once your current Windows works fine.",how:{label:"See the command",fn:go("reclaim")}}));
+
+    if(appData.length) t3.push(planAct({title:"Clear app caches inside AppData",risk:"adv",riskLabel:"Expert",gb:null,sub:"The safe slice of your "+gb(appTotal)+" of AppData (npm-cache, stale app caches). The breakdown shows which.",how:{label:"See AppData breakdown",fn:go("breakdown")}}));
+    t3.push(planAct({title:"Uninstall apps you don't use",risk:"adv",riskLabel:"Expert",gb:null,sub:"Your programs list, biggest first. Remove what you recognize and don't need. Keep drivers and runtimes.",how:{label:"See your programs",fn:go("programs")}}));
+
+    function section(num,label,totLabel,rows,first){
+      var h=el("div","tierhead"+(first?" first":""));
+      h.appendChild(el("span","tiernum",String(num)));
+      h.appendChild(el("span","lbl",label));
+      if(totLabel) h.appendChild(el("span","tiertot",totLabel));
+      host.appendChild(h);
+      if(rows.length){ rows.forEach(function(r){host.appendChild(r);}); }
+      else { var e=el("div","plan-act"); e.appendChild(el("span","sub","Nothing flagged here right now.")); host.appendChild(e); }
+    }
+    var t1tot=safeJunk+hiber, t2tot=(downloads?(downloads.gb||0):0)+filesGB+(winold?(winold.gb||0):0);
+    section(1,"Safe & quick — do these now", t1tot>0.05?("frees ~"+gb(t1tot)):"", t1, true);
+    section(2,"Worth a quick look", t2tot>0.05?("up to ~"+gb(t2tot)):"", t2, false);
+    section(3,"Bigger moves — when you need more", "", t3, false);
+
+    var keeps=arr(data.programs).filter(function(p){return isKeepProgram(p.name);}).slice(0,3);
+    if(keeps.length){
+      var kh=el("div","tierhead"); kh.appendChild(el("span","lbl","Keep — don't delete these")); host.appendChild(kh);
+      keeps.forEach(function(p){
+        var r=el("div","plan-act");
+        r.appendChild(el("span","t",p.name));
+        r.appendChild(el("span","badge keep","Keep"));
+        var drv=/driver|graphics|nvidia|intel|realtek|audio|chipset/i.test(p.name);
+        r.appendChild(el("span","sub", drv?"A hardware driver. Removing it can break your display, sound, or worse.":"Other apps need this to run. Removing it breaks them."));
+        host.appendChild(r);
+      });
+    }
+
+    var needGB=c?Math.max(0,c.totalGB*0.15-c.freeGB):0;
+    var cc=el("div","ceiling");
+    var msg="<b>The honest ceiling.</b> Safe right now: ~"+gb(t1tot)+". With a quick look: ~"+gb(t2tot)+" more.";
+    if(needGB>0.5){
+      msg+=" You'd need about "+Math.ceil(needGB)+" GB back to reach healthy headroom (~85% full).";
+      msg+=(needGB>t1tot+t2tot+1)
+        ? " That's more than the easy wins here, so you'll likely need the bigger moves above plus shifting large files to the cloud, or a bigger drive. No magic button, and we won't pretend there is one."
+        : " The steps above can get you there.";
+    } else { msg+=" Your drive already has healthy headroom."; }
+    cc.innerHTML=msg;
+    host.appendChild(cc);
+  }
+
+  // ---------- drive composition: where the whole drive went (storage context) ----------
+  function driveComposition(data){
+    var host=$("driveComp"); if(!host) return; host.innerHTML="";
+    var c=arr(data.drives).filter(function(d){return d.id && d.id.toUpperCase().indexOf("C")===0;})[0] || arr(data.drives)[0];
+    if(!c || !c.totalGB){ return; }
+    var idc=(c.id||"").toUpperCase().charAt(0);
+    var grp=arr(data.driveFolders).filter(function(g){return (g.drive||"").toUpperCase().charAt(0)===idc;})[0] || arr(data.driveFolders)[0];
+    var folders=grp ? arr(grp.folders).filter(function(f){return (f.gb||0)>0;}).slice().sort(function(a,b){return (b.gb||0)-(a.gb||0);}) : [];
+    var total=c.totalGB, free=Math.max(0,c.freeGB||0), used=Math.max(0,total-free);
+    var top=folders.slice(0,6);
+    var topSum=top.reduce(function(t,f){return t+(f.gb||0);},0);
+    var other=Math.max(0, used-topSum);
+    var shades=[100,84,68,52,38,24];
+    var segs=[];
+    top.forEach(function(f,i){ segs.push({name:f.name, gb:f.gb||0, c:"color-mix(in srgb, var(--accent) "+shades[i]+"%, var(--surface))"}); });
+    if(other>0.5) segs.push({name:"Other & system", gb:other, c:"color-mix(in srgb, var(--muted) 42%, var(--surface))"});
+    segs.push({name:"Free space", gb:free, c:"color-mix(in srgb, var(--green) 30%, var(--surface))"});
+    host.appendChild(el("p","comptitle","Where your "+c.id+" drive went — "+Math.round(total)+" GB total, "+Math.round(used)+" GB used"));
+    var bar=el("div","compbar");
+    segs.forEach(function(s){ var sp=document.createElement("span"); sp.style.width=(s.gb/total*100)+"%"; sp.style.background=s.c; sp.title=s.name+" · "+gb(s.gb); bar.appendChild(sp); });
+    host.appendChild(bar);
+    var lg=el("div","complegend");
+    segs.forEach(function(s){ var it=el("div","it"); var sw=el("span","sw"); sw.style.background=s.c; it.appendChild(sw); it.appendChild(el("span",null,s.name+" — "+gb(s.gb)+" ("+Math.round(s.gb/total*100)+"%)")); lg.appendChild(it); });
+    host.appendChild(lg);
+  }
+
   // ---------- snapshot history / trend ----------
   var HIST_KEY="diskDetoxHistory.v1";
   function pushSnapshot(data){
@@ -1124,6 +1263,9 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     list.push({t:"Turn on Storage Sense (auto-cleanup)",risk:"safe",
       why:"Lets Windows automatically clear temp files and empty the Recycle Bin on a schedule so you don't fill up again.",
       cmd:'start ms-settings:storagesense'});
+    if((s.hiberfilGB||0)>0.1){ list.push({t:"Turn off hibernation",risk:"safe",
+      why:"Frees the hibernation file ("+gb(s.hiberfilGB)+"). Reversible with powercfg /h on. You lose Fast Startup, but normal sleep still works.",
+      cmd:'powercfg /h off   # run as Admin'}); }
     list.push({t:"Make OneDrive files online-only",risk:"review",
       why:"Frees local space by keeping cloud copies only; files download on demand. Great if OneDrive is one of your biggest folders.",
       cmd:'# Right-click the OneDrive folder > "Free up space". Or:\nattrib +U -P "$env:USERPROFILE\\OneDrive\\*" /s'});
@@ -1470,11 +1612,12 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     }
     dashboard(data);
     savings(data);
+    buildPlan(data);
     pushSnapshot(data);
     trend(data);
     var g=$("gauges"); g.innerHTML="";
     arr(data.drives).forEach(function(d){ g.appendChild(gauge(d)); });
-    advisor(data);
+    driveComposition(data);
     bars("folderBars", data.profileFolders);
     bars("appBars", data.appDataLocal);
     driveFolders(data);
@@ -1528,6 +1671,7 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
   $("sampleBtn").addEventListener("click",function(){ try{ var b=new Blob([JSON.stringify(DEMO,null,2)],{type:"application/json"}); var u=URL.createObjectURL(b); var a=el("a"); a.href=u; a.download="disk-health-sample.json"; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){URL.revokeObjectURL(u);},1500); toast("Sample downloaded"); }catch(e){ toast("Download failed"); } });
   $("clearBtn").addEventListener("click",function(){
     try{ localStorage.removeItem(LS_KEY); }catch(e){}
+    $("pasteBox").value=""; $("pasteArea").classList.add("hidden"); $("parseMsg").textContent="";
     render(JSON.parse(JSON.stringify(DEMO)));
     $("loadStatus").textContent="Cleared. Showing example data again.";
     updateSavedNote(); activateTab("dashboard"); toast("Cleared");
