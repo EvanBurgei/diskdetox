@@ -31,7 +31,7 @@ $ErrorActionPreference = 'SilentlyContinue'
 
 $__sw=[System.Diagnostics.Stopwatch]::StartNew()
 function El { $e=$__sw.Elapsed; '{0}:{1:00}' -f [int][math]::Floor($e.TotalMinutes), $e.Seconds }
-function Step($i,$m){ Write-Host ("[{0}/14] ({1}) {2}" -f $i,(El),$m) -ForegroundColor Cyan }
+function Step($i,$m){ Write-Host ("[{0}/15] ({1}) {2}" -f $i,(El),$m) -ForegroundColor Cyan }
 function Tick($m){ Write-Host ("    - {0}  ({1})" -f $m,(El)) -ForegroundColor DarkGray }
 function NotJunk($d){ -not (($d.Attributes -band [IO.FileAttributes]::ReparsePoint) -and ($d.Attributes -band [IO.FileAttributes]::System)) }
 Write-Host "DiskDetox is scanning. You'll see each step below as it runs; the slow steps can take a few minutes, so leave this window open until it says Done." -ForegroundColor Cyan
@@ -112,6 +112,8 @@ Step 5 'Measuring cleanable caches'
 $cacheDefs = @(
   @{ name='User Temp';            path=$env:TEMP;                                                  safe=$true  },
   @{ name='Windows Temp';         path='C:\Windows\Temp';                                          safe=$true  },
+  @{ name='Temp folder (C:\Temp)';     path='C:\Temp';                                             safe=$true  },
+  @{ name='Adobe temp (C:\adobeTemp)'; path='C:\adobeTemp';                                        safe=$true  },
   @{ name='Windows Update Cache'; path='C:\Windows\SoftwareDistribution\Download';                 safe=$true  },
   @{ name='Chrome cache';         path="$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Cache";  safe=$true  },
   @{ name='Edge cache';           path="$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Cache"; safe=$true  },
@@ -256,12 +258,18 @@ try {
 } catch {}
 $security = [PSCustomObject]@{ defender=$defender; firewall=@($firewall); bitlocker=$bitlocker; lastUpdate=$lastUpdate; threats=@($threats) }
 
+Step 14 'Checking known space hogs (deep spots that are often huge)'
+$hogDefs=@(@{n='CapabilityAccessManager log (Windows bug)';p='C:\ProgramData\Microsoft\Windows\CapabilityAccessManager\CapabilityAccessManager.db-wal';f=$true;risk='review';why='A Windows camera, mic and location permission log that can balloon to tens of GB. A known bug.';fix='Restart your PC; a clean shutdown usually shrinks it. If it stays huge after a reboot, it is the stubborn form and needs a service-stop fix.'},@{n='PowerToys old installers';p="$env:LOCALAPPDATA\Microsoft\PowerToys\Updates";f=$false;risk='safe';why='PowerToys keeps every past update installer here.';fix='Delete the contents; it re-downloads only on the next update.'},@{n='Windows installer cache';p='C:\ProgramData\Package Cache';f=$false;risk='review';why='Setup files Visual Studio and .NET keep for repair.';fix='Clean from the Visual Studio Installer, or leave it if you use VS.'},@{n='Windows crash reports';p='C:\ProgramData\Microsoft\Windows\WER';f=$false;risk='safe';why='Saved crash dumps and error reports.';fix='Safe to clear; Disk Cleanup also removes these.'},@{n='Delivery Optimization cache';p='C:\Windows\SoftwareDistribution\DeliveryOptimization';f=$false;risk='safe';why='Cached Windows update files shared on your network.';fix='Safe to clear; Disk Cleanup removes these.'},@{n='Docker data';p="$env:LOCALAPPDATA\Docker";f=$false;risk='review';why='Docker images, containers and volumes.';fix='Run docker system prune to remove unused ones.'},@{n='pip cache (Python)';p="$env:LOCALAPPDATA\pip\Cache";f=$false;risk='safe';why='Python package download cache.';fix='Run pip cache purge.'},@{n='npm cache';p="$env:LOCALAPPDATA\npm-cache";f=$false;risk='safe';why='Node package cache.';fix='Run npm cache clean --force.'},@{n='Yarn cache';p="$env:LOCALAPPDATA\Yarn\Cache";f=$false;risk='safe';why='Yarn package cache.';fix='Run yarn cache clean.'},@{n='NuGet packages (.NET)';p="$env:USERPROFILE\.nuget\packages";f=$false;risk='review';why='Downloaded .NET packages shared across projects.';fix='Run dotnet nuget locals all --clear.'},@{n='Claude agent VM bundles';p="$env:APPDATA\Claude\vm_bundles";f=$false;risk='review';why='Downloaded VM images for Claude code and agent mode.';fix='Close Claude, delete the folder; it re-downloads when needed.'},@{n='OneDrive setup logs';p="$env:LOCALAPPDATA\Microsoft\OneDrive\setup\logs";f=$false;risk='safe';why='OneDrive setup and update logs.';fix='Safe to clear.'})
+$hogs=@(); foreach($h in $hogDefs){ Tick $h.n; $g= if($h.f){ if(Test-Path -LiteralPath $h.p){[math]::Round(((Get-Item -LiteralPath $h.p -Force).Length)/1GB,2)}else{0} } else { FolderGB $h.p }; if($g -gt 0.1){ $hogs+=[PSCustomObject]@{name=$h.n;gb=$g;path=$h.p;why=$h.why;fix=$h.fix;risk=$h.risk} } }
+$hogs=@($hogs | Sort-Object gb -Descending)
+
 # ---- Redaction ----
 $machine = if ($Redact) { $null } else { $env:COMPUTERNAME }
 if ($Redact) {
   foreach ($c in $caches) { $c.path = $null }
   foreach ($g in $games)  { $g.path = $null }
   foreach ($s in $startup) { $s.command = $null }   # drop full exe paths; keep name/source/exe
+  foreach ($h in $hogs)    { $h.path = $null }
   foreach ($f in $largestFiles) {
     $f.path = $null
     $f.name = if ($f.ext) { "(a .$($f.ext) file)" } else { "(a large file)" }
@@ -285,9 +293,10 @@ $out = [PSCustomObject]@{
   processes      = @($processes)
   security       = $security
   system         = $system
+  hogs           = @($hogs)
 }
 
-Step 14 'Saving your results'
+Step 15 'Saving your results'
 $json = $out | ConvertTo-Json -Depth 6
 $desk = [Environment]::GetFolderPath('Desktop')                              # respects OneDrive Desktop redirection
 if (-not $desk -or -not (Test-Path $desk)) { $desk = "$env:USERPROFILE\Desktop" }

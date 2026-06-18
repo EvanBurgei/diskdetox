@@ -401,6 +401,11 @@
 
   <!-- RECLAIM -->
   <section class="tabpanel hidden" id="panel-reclaim" role="tabpanel" aria-labelledby="tab-reclaim" data-panel="reclaim">
+    <div class="panel hidden" id="hogPanel">
+      <h2>Known space hogs</h2>
+      <p class="muted" id="hogSummary" style="font-size:13.5px"></p>
+      <div id="hogRows"></div>
+    </div>
     <div class="panel">
       <h2>Reclaimable now</h2>
       <p class="muted" id="reclaimSummary" style="font-size:13.5px"></p>
@@ -742,7 +747,7 @@ if (-not $PSBoundParameters.ContainsKey('Redact')) { $Redact = __REDACT__ }
 $ErrorActionPreference = 'SilentlyContinue'
 $__sw=[System.Diagnostics.Stopwatch]::StartNew()
 function El { $e=$__sw.Elapsed; '{0}:{1:00}' -f [int][math]::Floor($e.TotalMinutes), $e.Seconds }
-function Step($i,$m){ Write-Host ("[{0}/14] ({1}) {2}" -f $i,(El),$m) -ForegroundColor Cyan }
+function Step($i,$m){ Write-Host ("[{0}/15] ({1}) {2}" -f $i,(El),$m) -ForegroundColor Cyan }
 function Tick($m){ Write-Host ("    - {0}  ({1})" -f $m,(El)) -ForegroundColor DarkGray }
 function NotJunk($d){ -not (($d.Attributes -band [IO.FileAttributes]::ReparsePoint) -and ($d.Attributes -band [IO.FileAttributes]::System)) }
 Write-Host "DiskDetox is scanning. You'll see each step below as it runs; the slow steps can take a few minutes, so leave this window open until it says Done." -ForegroundColor Cyan
@@ -760,7 +765,7 @@ Step 4 'Reading your installed programs'
 $regPaths='HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*','HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*','HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*'
 $programs = Get-ItemProperty $regPaths | Where-Object { $_.DisplayName -and $_.EstimatedSize } | Select-Object @{n='name';e={$_.DisplayName}}, @{n='mb';e={[math]::Round($_.EstimatedSize/1024,0)}} | Group-Object name | ForEach-Object { $_.Group | Sort-Object mb -Descending | Select-Object -First 1 } | Sort-Object mb -Descending | Select-Object -First 30
 Step 5 'Measuring cleanable caches'
-$cacheDefs=@(@{name='User Temp';path=$env:TEMP;safe=$true},@{name='Windows Temp';path='C:\Windows\Temp';safe=$true},@{name='Windows Update Cache';path='C:\Windows\SoftwareDistribution\Download';safe=$true},@{name='Chrome cache';path="$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Cache";safe=$true},@{name='Edge cache';path="$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Cache";safe=$true},@{name='Downloads';path="$env:USERPROFILE\Downloads";safe=$false},@{name='Recycle Bin';path='C:\$Recycle.Bin';safe=$true},@{name='Windows.old (previous Windows)';path='C:\Windows.old';safe=$false})
+$cacheDefs=@(@{name='User Temp';path=$env:TEMP;safe=$true},@{name='Windows Temp';path='C:\Windows\Temp';safe=$true},@{name='Temp folder (C:\Temp)';path='C:\Temp';safe=$true},@{name='Adobe temp (C:\adobeTemp)';path='C:\adobeTemp';safe=$true},@{name='Windows Update Cache';path='C:\Windows\SoftwareDistribution\Download';safe=$true},@{name='Chrome cache';path="$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Cache";safe=$true},@{name='Edge cache';path="$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Cache";safe=$true},@{name='Downloads';path="$env:USERPROFILE\Downloads";safe=$false},@{name='Recycle Bin';path='C:\$Recycle.Bin';safe=$true},@{name='Windows.old (previous Windows)';path='C:\Windows.old';safe=$false})
 $caches = foreach($c in $cacheDefs){ [PSCustomObject]@{ name=$c.name; gb=(FolderGB $c.path); path=$c.path; safe=$c.safe } }
 Step 6 'Looking for installed games'
 $gameRoots='C:\Program Files (x86)\Steam\steamapps\common','C:\Program Files\Epic Games','C:\Program Files (x86)\Origin Games','C:\Program Files\EA Games','C:\Program Files (x86)\EA Games','C:\Program Files (x86)\GOG Galaxy\Games','C:\Games'
@@ -792,10 +797,14 @@ $bitlocker=$null; try{ $b=Get-BitLockerVolume -MountPoint $env:SystemDrive -Erro
 $lastUpdate=$null; try{ $lastUpdate=('{0:yyyy-MM-dd}' -f (Get-HotFix | Sort-Object InstalledOn -Descending | Select-Object -First 1).InstalledOn) }catch{}
 $threats=@(); try{ $sevMap=@{1='Low';2='Moderate';4='High';5='Severe'}; $threats=Get-MpThreat -ErrorAction SilentlyContinue | Select-Object -First 12 | ForEach-Object { $sv=$sevMap[[int]$_.SeverityID]; if(-not $sv){$sv="$($_.SeverityID)"}; [PSCustomObject]@{name=$_.ThreatName;severity=$sv;status='handled by Defender'} } }catch{}
 $security=[PSCustomObject]@{defender=$defender;firewall=@($firewall);bitlocker=$bitlocker;lastUpdate=$lastUpdate;threats=@($threats)}
+Step 14 'Checking known space hogs (deep spots that are often huge)'
+$hogDefs=@(@{n='CapabilityAccessManager log (Windows bug)';p='C:\ProgramData\Microsoft\Windows\CapabilityAccessManager\CapabilityAccessManager.db-wal';f=$true;risk='review';why='A Windows camera, mic and location permission log that can balloon to tens of GB. A known bug.';fix='Restart your PC; a clean shutdown usually shrinks it. If it stays huge after a reboot, it is the stubborn form and needs a service-stop fix.'},@{n='PowerToys old installers';p="$env:LOCALAPPDATA\Microsoft\PowerToys\Updates";f=$false;risk='safe';why='PowerToys keeps every past update installer here.';fix='Delete the contents; it re-downloads only on the next update.'},@{n='Windows installer cache';p='C:\ProgramData\Package Cache';f=$false;risk='review';why='Setup files Visual Studio and .NET keep for repair.';fix='Clean from the Visual Studio Installer, or leave it if you use VS.'},@{n='Windows crash reports';p='C:\ProgramData\Microsoft\Windows\WER';f=$false;risk='safe';why='Saved crash dumps and error reports.';fix='Safe to clear; Disk Cleanup also removes these.'},@{n='Delivery Optimization cache';p='C:\Windows\SoftwareDistribution\DeliveryOptimization';f=$false;risk='safe';why='Cached Windows update files shared on your network.';fix='Safe to clear; Disk Cleanup removes these.'},@{n='Docker data';p="$env:LOCALAPPDATA\Docker";f=$false;risk='review';why='Docker images, containers and volumes.';fix='Run docker system prune to remove unused ones.'},@{n='pip cache (Python)';p="$env:LOCALAPPDATA\pip\Cache";f=$false;risk='safe';why='Python package download cache.';fix='Run pip cache purge.'},@{n='npm cache';p="$env:LOCALAPPDATA\npm-cache";f=$false;risk='safe';why='Node package cache.';fix='Run npm cache clean --force.'},@{n='Yarn cache';p="$env:LOCALAPPDATA\Yarn\Cache";f=$false;risk='safe';why='Yarn package cache.';fix='Run yarn cache clean.'},@{n='NuGet packages (.NET)';p="$env:USERPROFILE\.nuget\packages";f=$false;risk='review';why='Downloaded .NET packages shared across projects.';fix='Run dotnet nuget locals all --clear.'},@{n='Claude agent VM bundles';p="$env:APPDATA\Claude\vm_bundles";f=$false;risk='review';why='Downloaded VM images for Claude code and agent mode.';fix='Close Claude, delete the folder; it re-downloads when needed.'},@{n='OneDrive setup logs';p="$env:LOCALAPPDATA\Microsoft\OneDrive\setup\logs";f=$false;risk='safe';why='OneDrive setup and update logs.';fix='Safe to clear.'})
+$hogs=@(); foreach($h in $hogDefs){ Tick $h.n; $g= if($h.f){ if(Test-Path -LiteralPath $h.p){[math]::Round(((Get-Item -LiteralPath $h.p -Force).Length)/1GB,2)}else{0} } else { FolderGB $h.p }; if($g -gt 0.1){ $hogs+=[PSCustomObject]@{name=$h.n;gb=$g;path=$h.p;why=$h.why;fix=$h.fix;risk=$h.risk} } }
+$hogs=@($hogs | Sort-Object gb -Descending)
 $machine = if($Redact){$null}else{$env:COMPUTERNAME}
-if($Redact){ foreach($c in $caches){$c.path=$null}; foreach($g in $games){$g.path=$null}; foreach($s in $startup){$s.command=$null}; foreach($f in $largestFiles){ $f.path=$null; $f.name= if($f.ext){"(a .$($f.ext) file)"}else{"(a large file)"} } }
-$out=[PSCustomObject]@{ schema='disk-health/v1'; generated=(Get-Date).ToString('s'); machine=$machine; redacted=[bool]$Redact; drives=@($drives); profileFolders=@($profileFolders); appDataLocal=@($appLocal); programs=@($programs); caches=@($caches); games=@($games); largestFiles=@($largestFiles); driveFolders=@($driveFolders); startup=@($startup); processes=@($processes); security=$security; system=$system }
-Step 14 'Saving your results'
+if($Redact){ foreach($c in $caches){$c.path=$null}; foreach($g in $games){$g.path=$null}; foreach($s in $startup){$s.command=$null}; foreach($h in $hogs){$h.path=$null}; foreach($f in $largestFiles){ $f.path=$null; $f.name= if($f.ext){"(a .$($f.ext) file)"}else{"(a large file)"} } }
+$out=[PSCustomObject]@{ schema='disk-health/v1'; generated=(Get-Date).ToString('s'); machine=$machine; redacted=[bool]$Redact; drives=@($drives); profileFolders=@($profileFolders); appDataLocal=@($appLocal); programs=@($programs); caches=@($caches); games=@($games); largestFiles=@($largestFiles); driveFolders=@($driveFolders); startup=@($startup); processes=@($processes); security=$security; system=$system; hogs=@($hogs) }
+Step 15 'Saving your results'
 $json=$out | ConvertTo-Json -Depth 6
 $desk=[Environment]::GetFolderPath('Desktop'); if(-not $desk -or -not (Test-Path $desk)){ $desk="$env:USERPROFILE\Desktop" }; $dest=Join-Path $desk 'disk-health.json'
 $json | Out-File -FilePath $dest -Encoding utf8
@@ -885,7 +894,12 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
       bitlocker:"Off",
       lastUpdate:"2026-06-09",
       threats:[]
-    }
+    },
+    hogs:[
+      {name:"CapabilityAccessManager log (Windows bug)",gb:28.4,path:"C:\\ProgramData\\Microsoft\\Windows\\CapabilityAccessManager",risk:"review",why:"A Windows camera, mic and location permission log that can balloon to tens of GB. A known bug.",fix:"Restart your PC; a clean shutdown usually shrinks it."},
+      {name:"Windows installer cache",gb:8.1,path:"C:\\ProgramData\\Package Cache",risk:"review",why:"Setup files Visual Studio and .NET keep for repair.",fix:"Clean from the Visual Studio Installer, or leave it if you use VS."},
+      {name:"PowerToys old installers",gb:5.2,path:"AppData\\Local\\Microsoft\\PowerToys\\Updates",risk:"safe",why:"PowerToys keeps every past update installer here.",fix:"Delete the contents; it re-downloads only on the next update."}
+    ]
   };
 
   // ---------- helpers ----------
@@ -1111,6 +1125,9 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
 
     if(appData.length) t3.push(planAct({title:"Clear app caches inside AppData",risk:"adv",riskLabel:"Expert",gb:null,sub:"The safe slice of your "+gb(appTotal)+" of AppData (npm-cache, stale app caches). The breakdown shows which.",how:{label:"See AppData breakdown",fn:go("breakdown")}}));
     t3.push(planAct({title:"Uninstall apps you don't use",risk:"adv",riskLabel:"Expert",gb:null,sub:"Your programs list, biggest first. Remove what you recognize and don't need. Keep drivers and runtimes.",how:{label:"See your programs",fn:go("programs")}}));
+    arr(data.hogs).filter(function(h){return (h.gb||0)>1;}).slice(0,3).forEach(function(h){
+      (h.risk==="safe"?t1:t2).push(planAct({title:h.name,risk:(h.risk==="safe"?"safe":"review"),riskLabel:(h.risk==="safe"?"Safe":"Review"),rev:null,gb:h.gb,sub:h.why+(h.fix?(" "+h.fix):""),how:{label:"See space hogs",fn:go("reclaim")}}));
+    });
 
     function section(num,label,totLabel,rows,first){
       var h=el("div","tierhead"+(first?" first":""));
@@ -1294,6 +1311,8 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
   var CLEAR_CMD = {
     "User Temp":'Remove-Item "$env:TEMP\\*" -Recurse -Force -ErrorAction SilentlyContinue',
     "Windows Temp":'Remove-Item "C:\\Windows\\Temp\\*" -Recurse -Force -ErrorAction SilentlyContinue   # run as Admin',
+    "Temp folder (C:\\Temp)":'Remove-Item "C:\\Temp\\*" -Recurse -Force -ErrorAction SilentlyContinue',
+    "Adobe temp (C:\\adobeTemp)":'Remove-Item "C:\\adobeTemp\\*" -Recurse -Force -ErrorAction SilentlyContinue',
     "Windows Update Cache":'net stop wuauserv; Remove-Item "C:\\Windows\\SoftwareDistribution\\Download\\*" -Recurse -Force -ErrorAction SilentlyContinue; net start wuauserv   # run as Admin',
     "Chrome cache":'# Close Chrome first, then:\nRemove-Item "$env:LOCALAPPDATA\\Google\\Chrome\\User Data\\Default\\Cache\\*" -Recurse -Force -ErrorAction SilentlyContinue',
     "Edge cache":'# Close Edge first, then:\nRemove-Item "$env:LOCALAPPDATA\\Microsoft\\Edge\\User Data\\Default\\Cache\\*" -Recurse -Force -ErrorAction SilentlyContinue',
@@ -1301,6 +1320,25 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     "Downloads":'explorer "$env:USERPROFILE\\Downloads"   # opens the folder so you can review before deleting',
     "Windows.old (previous Windows)":'cleanmgr   # tick "Previous Windows installation(s)" to remove your old Windows (frees the rollback copy)'
   };
+  function hogRows(data){
+    var host=$("hogRows"), panel=$("hogPanel"); if(!host||!panel) return; host.innerHTML="";
+    var hogs=arr(data.hogs).filter(function(h){return (h.gb||0)>0.1;});
+    panel.classList.toggle("hidden", hogs.length===0);
+    if(!hogs.length) return;
+    var total=hogs.reduce(function(t,h){return t+(h.gb||0);},0);
+    $("hogSummary").textContent="Deep spots that are often the real space eaters. The scan checked these by name and found about "+gb(total)+". Read each one before clearing.";
+    hogs.forEach(function(h){
+      var card=el("div","fix"), head=el("div","head");
+      head.appendChild(el("span","t",h.name));
+      head.appendChild(el("span","badge "+(h.risk==="safe"?"safe":"review"), h.risk==="safe"?"Safe":"Review"));
+      var gn=el("span","gain","~"+gb(h.gb||0)); gn.style.marginLeft="6px"; head.appendChild(gn);
+      card.appendChild(head);
+      if(h.why) card.appendChild(el("div","why",h.why));
+      if(h.fix){ var fx=el("div","why"); fx.appendChild(el("strong",null,"How to clear: ")); fx.appendChild(document.createTextNode(h.fix)); card.appendChild(fx); }
+      if(h.path){ var pp=el("div","muted",h.path); pp.style.fontSize="12px"; pp.style.marginTop="3px"; card.appendChild(pp); }
+      host.appendChild(card);
+    });
+  }
   function cacheRows(data){
     var tb=$("cacheRows"); tb.innerHTML="";
     var total=0;
@@ -1856,6 +1894,7 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     fileRows(data);
     dupRender(data);
     cacheRows(data);
+    hogRows(data);
     programRows(data);
     var games=arr(data.games);
     $("gamesPanel").classList.toggle("hidden", games.length===0);
