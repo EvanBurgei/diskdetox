@@ -174,6 +174,10 @@
   .runsteps{font-size:13.5px; color:var(--muted); margin:6px 0 2px; padding-left:22px; line-height:1.65}
   .runsteps li{margin:4px 0}
   .runsteps strong{color:var(--txt)}
+  .revtag{font-size:11px; font-weight:700; padding:1px 7px; border-radius:999px}
+  .rev-y{background:color-mix(in srgb, var(--green) 13%, transparent); color:color-mix(in srgb, var(--green) 60%, var(--txt))}
+  .rev-n{background:color-mix(in srgb, var(--amber) 16%, transparent); color:var(--amber)}
+  .rescan{display:flex; flex-wrap:wrap; align-items:center; gap:10px; justify-content:space-between; background:var(--chip); border:1px solid var(--line); border-radius:10px; padding:12px 16px; margin-top:12px; font-size:13.5px}
 
   /* fixes */
   .fix{border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin:0 0 12px; background:var(--panel2)}
@@ -1020,6 +1024,8 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     row.appendChild(el("span","t",o.title));
     row.appendChild(el("span","badge "+o.risk,o.riskLabel));
     if(o.gb!=null && o.gb>0.005) row.appendChild(el("span","gain","~"+gb(o.gb)));
+    if(o.rev===false) row.appendChild(el("span","revtag rev-n","Permanent"));
+    else if(o.rev!==null) row.appendChild(el("span","revtag rev-y","Reversible"));
     if(o.how){ var w=el("span","how"); var b=el("button","btn ghost",o.how.label); b.addEventListener("click",o.how.fn); w.appendChild(b); row.appendChild(w); }
     else if(o.note){ row.appendChild(el("span","note",o.note)); }
     if(o.sub) row.appendChild(el("span","sub",o.sub));
@@ -1045,10 +1051,13 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     if(hiber>0.1) t1.push(planAct({title:"Turn off hibernation",risk:"safe",riskLabel:"Safe",gb:hiber,sub:"Frees the hibernation file. Reversible any time with powercfg /h on.",how:{label:"See the command",fn:go("reclaim")}}));
     t1.push(planAct({title:"Turn on Storage Sense",risk:"safe",riskLabel:"Safe",gb:null,sub:"Let Windows clear junk and empty the Recycle Bin on a schedule, so you don't fill up again.",how:{label:"See how",fn:go("reclaim")}}));
 
-    if(downloads && (downloads.gb||0)>0.05) t2.push(planAct({title:"Review your Downloads folder",risk:"review",riskLabel:"Review",gb:downloads.gb,sub:"These are your files. Clear out old installers and anything you're done with.",note:"Open Downloads in File Explorer"}));
-    if(files.length) t2.push(planAct({title:"Check your biggest files",risk:"review",riskLabel:"Review",gb:filesGB,sub:"Like "+files[0].name+" ("+gb(files[0].gb)+"). Move to the cloud or delete what you recognize. These are from your profile, not the whole drive.",how:{label:"See your biggest files",fn:go("breakdown")}}));
-    if(winold && (winold.gb||0)>0.1) t2.push(planAct({title:"Remove the previous Windows install",risk:"review",riskLabel:"Review",gb:winold.gb,sub:"Windows.old, kept after an upgrade. Safe to delete once your current Windows works fine.",how:{label:"See the command",fn:go("reclaim")}}));
+    if(downloads && (downloads.gb||0)>0.05) t2.push(planAct({title:"Review your Downloads folder",risk:"review",riskLabel:"Review",gb:downloads.gb,rev:false,sub:"These are your files. Clear out old installers and anything you're done with.",note:"Open Downloads in File Explorer"}));
+    if(files.length) t2.push(planAct({title:"Check your biggest files",risk:"review",riskLabel:"Review",gb:filesGB,rev:false,sub:"Like "+files[0].name+" ("+gb(files[0].gb)+"). Move to the cloud or delete what you recognize. These are from your profile, not the whole drive.",how:{label:"See your biggest files",fn:go("breakdown")}}));
+    if(winold && (winold.gb||0)>0.1) t2.push(planAct({title:"Remove the previous Windows install",risk:"review",riskLabel:"Review",gb:winold.gb,rev:false,sub:"Windows.old, kept after an upgrade. Safe to delete once your current Windows works fine.",how:{label:"See the command",fn:go("reclaim")}}));
     if(cloud) t2.push(planAct({title:"Free up space from "+cloud.name,risk:"review",riskLabel:"Review",gb:cloud.gb,sub:"Make synced files online-only: they stay safe in the cloud and download when you open them. Frees local space with no data loss.",note:"Right-click the "+cloud.name+" folder, then Free up space"}));
+    arr(data.drives).filter(function(d){ return d.id && c && d.id.toUpperCase().charAt(0)!==c.id.toUpperCase().charAt(0) && d.totalGB && (100-(d.pctFree||0))>=80; }).forEach(function(d){
+      t2.push(planAct({title:"Check your "+d.id+" drive ("+Math.round(100-(d.pctFree||0))+"% full)",risk:"review",riskLabel:"Review",rev:null,gb:null,sub:"This drive is filling up too. See its biggest folders, and move or clear what you don't need.",how:{label:"See what's on it",fn:go("breakdown")}}));
+    });
 
     if(appData.length) t3.push(planAct({title:"Clear app caches inside AppData",risk:"adv",riskLabel:"Expert",gb:null,sub:"The safe slice of your "+gb(appTotal)+" of AppData (npm-cache, stale app caches). The breakdown shows which.",how:{label:"See AppData breakdown",fn:go("breakdown")}}));
     t3.push(planAct({title:"Uninstall apps you don't use",risk:"adv",riskLabel:"Expert",gb:null,sub:"Your programs list, biggest first. Remove what you recognize and don't need. Keep drivers and runtimes.",how:{label:"See your programs",fn:go("programs")}}));
@@ -1091,32 +1100,40 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     } else { msg+=" Your drive already has healthy headroom."; }
     cc.innerHTML=msg;
     host.appendChild(cc);
+    if(!data.demo){
+      var loop=el("div","rescan");
+      loop.appendChild(el("span",null,"Cleaned some up? Run the scan again to watch your free space climb."));
+      var rb=el("button","btn primary","Re-scan now"); rb.addEventListener("click",go("scan")); loop.appendChild(rb);
+      host.appendChild(loop);
+    }
   }
 
   // ---------- drive composition: where the whole drive went (storage context) ----------
   function driveComposition(data){
     var host=$("driveComp"); if(!host) return; host.innerHTML="";
-    var c=arr(data.drives).filter(function(d){return d.id && d.id.toUpperCase().indexOf("C")===0;})[0] || arr(data.drives)[0];
-    if(!c || !c.totalGB){ return; }
-    var idc=(c.id||"").toUpperCase().charAt(0);
-    var grp=arr(data.driveFolders).filter(function(g){return (g.drive||"").toUpperCase().charAt(0)===idc;})[0] || arr(data.driveFolders)[0];
-    var folders=grp ? arr(grp.folders).filter(function(f){return (f.gb||0)>0;}).slice().sort(function(a,b){return (b.gb||0)-(a.gb||0);}) : [];
-    var total=c.totalGB, free=Math.max(0,c.freeGB||0), used=Math.max(0,total-free);
-    var top=folders.slice(0,6);
-    var topSum=top.reduce(function(t,f){return t+(f.gb||0);},0);
-    var other=Math.max(0, used-topSum);
-    var shades=[100,84,68,52,38,24];
-    var segs=[];
-    top.forEach(function(f,i){ segs.push({name:f.name, gb:f.gb||0, c:"color-mix(in srgb, var(--accent) "+shades[i]+"%, var(--surface))"}); });
-    if(other>0.5) segs.push({name:"Other & system", gb:other, c:"color-mix(in srgb, var(--muted) 42%, var(--surface))"});
-    segs.push({name:"Free space", gb:free, c:"color-mix(in srgb, var(--green) 30%, var(--surface))"});
-    host.appendChild(el("p","comptitle","Where your "+c.id+" drive went. "+Math.round(total)+" GB total, "+Math.round(used)+" GB used"));
-    var bar=el("div","compbar");
-    segs.forEach(function(s){ var sp=document.createElement("span"); sp.style.width=(s.gb/total*100)+"%"; sp.style.background=s.c; sp.title=s.name+" · "+gb(s.gb); bar.appendChild(sp); });
-    host.appendChild(bar);
-    var lg=el("div","complegend");
-    segs.forEach(function(s){ var it=el("div","it"); var sw=el("span","sw"); sw.style.background=s.c; it.appendChild(sw); it.appendChild(el("span",null,s.name+" · "+gb(s.gb)+" ("+Math.round(s.gb/total*100)+"%)")); lg.appendChild(it); });
-    host.appendChild(lg);
+    arr(data.drives).filter(function(d){ return d.totalGB; }).forEach(function(c, idx){
+      var idc=(c.id||"").toUpperCase().charAt(0);
+      var grp=arr(data.driveFolders).filter(function(g){return (g.drive||"").toUpperCase().charAt(0)===idc;})[0];
+      var folders=grp ? arr(grp.folders).filter(function(f){return (f.gb||0)>0;}).slice().sort(function(a,b){return (b.gb||0)-(a.gb||0);}) : [];
+      var total=c.totalGB, free=Math.max(0,c.freeGB||0), used=Math.max(0,total-free);
+      var top=folders.slice(0,6);
+      var topSum=top.reduce(function(t,f){return t+(f.gb||0);},0);
+      var other=Math.max(0, used-topSum);
+      var shades=[100,84,68,52,38,24];
+      var segs=[];
+      top.forEach(function(f,i){ segs.push({name:f.name, gb:f.gb||0, c:"color-mix(in srgb, var(--accent) "+shades[i]+"%, var(--surface))"}); });
+      if(other>0.5) segs.push({name:"Other & system", gb:other, c:"color-mix(in srgb, var(--muted) 42%, var(--surface))"});
+      segs.push({name:"Free space", gb:free, c:"color-mix(in srgb, var(--green) 30%, var(--surface))"});
+      var title=el("p","comptitle","Where your "+c.id+" drive went. "+Math.round(total)+" GB total, "+Math.round(used)+" GB used");
+      if(idx>0) title.style.marginTop="18px";
+      host.appendChild(title);
+      var bar=el("div","compbar");
+      segs.forEach(function(s){ var sp=document.createElement("span"); sp.style.width=(s.gb/total*100)+"%"; sp.style.background=s.c; sp.title=s.name+" · "+gb(s.gb); bar.appendChild(sp); });
+      host.appendChild(bar);
+      var lg=el("div","complegend");
+      segs.forEach(function(s){ var it=el("div","it"); var sw=el("span","sw"); sw.style.background=s.c; it.appendChild(sw); it.appendChild(el("span",null,s.name+" · "+gb(s.gb)+" ("+Math.round(s.gb/total*100)+"%)")); lg.appendChild(it); });
+      host.appendChild(lg);
+    });
   }
 
   // ---------- snapshot history / trend ----------
