@@ -171,6 +171,9 @@
   .complegend{display:flex; flex-wrap:wrap; gap:6px 16px; font-size:12.5px}
   .complegend .it{display:flex; align-items:center; gap:7px}
   .complegend .sw{width:11px; height:11px; border-radius:3px; flex:0 0 auto; border:1px solid color-mix(in srgb, var(--txt) 14%, transparent)}
+  .runsteps{font-size:13.5px; color:var(--muted); margin:6px 0 2px; padding-left:22px; line-height:1.65}
+  .runsteps li{margin:4px 0}
+  .runsteps strong{color:var(--txt)}
 
   /* fixes */
   .fix{border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin:0 0 12px; background:var(--panel2)}
@@ -423,6 +426,7 @@
       <h2>System files</h2>
       <div class="bars" id="systemBars"></div>
       <p class="muted" id="systemNote" style="font-size:13px; margin-top:10px"></p>
+      <div id="systemActions" style="margin-top:14px"></div>
     </div>
   </section>
 
@@ -618,16 +622,27 @@
         <label class="toggle"><input type="checkbox" id="redactToggle"> Redact paths &amp; machine name (applies to both options below)</label>
       </div>
 
-      <h3>Recommended: download, then run it</h3>
-      <div class="btn-row" style="margin-bottom:8px">
-        <button class="btn primary" type="button" id="downloadPs1">Download diskdetox-scan.ps1</button>
+      <h3>Easiest: just double-click (no typing)</h3>
+      <p class="muted" style="font-size:13px; margin:0 0 8px">Best if you're not comfortable with PowerShell. Download both files, double-click the launcher, and it does the rest.</p>
+      <div class="btn-row" style="margin-bottom:10px">
+        <button class="btn primary" type="button" id="downloadBat">1 · Download the launcher (.bat)</button>
+        <button class="btn primary" type="button" id="downloadPs1">2 · Download the scan (.ps1)</button>
       </div>
-      <p class="muted" style="font-size:13px; margin:0 0 6px">Then open PowerShell or Windows Terminal (press Start, type "PowerShell" or "Terminal"), paste this one line, and press Enter:</p>
+      <ol class="runsteps">
+        <li>Click <strong>both</strong> buttons above. They save to your <strong>Downloads</strong> folder.</li>
+        <li>Open your Downloads folder and <strong>double-click <span class="mono">diskdetox-run</span></strong>.</li>
+        <li>If a blue <em>"Windows protected your PC"</em> box appears, click <strong>More info</strong>, then <strong>Run anyway</strong>. It shows for anything newly downloaded; this is your own file.</li>
+        <li>A black window scans for a few minutes, then tells you it's done.</li>
+        <li>Come back here and click <strong>Paste data</strong> below.</li>
+      </ol>
+
+      <h3 style="margin-top:18px">Prefer to run it yourself?</h3>
+      <p class="muted" style="font-size:13px; margin:0 0 6px">Open PowerShell or Windows Terminal (press Start, type "PowerShell" or "Terminal"), paste this one line, and press Enter:</p>
       <div class="codebox">
         <button class="btn copybtn" id="copyRunCmd">Copy</button>
         <pre id="runCmd">powershell -ExecutionPolicy Bypass -File "$HOME\Downloads\diskdetox-scan.ps1"</pre>
       </div>
-      <p class="muted" style="font-size:12.5px; margin-top:8px">Don't double-click the <span class="mono">.ps1</span>. Windows opens it in Notepad as a safety default; that one command runs it properly. Saved it somewhere other than Downloads? Change the path to match.</p>
+      <p class="muted" style="font-size:12.5px; margin-top:8px">Uses the <span class="mono">.ps1</span> from button 2. Don't double-click the <span class="mono">.ps1</span> on its own — Windows opens it in Notepad as a safety default; the launcher or this command runs it properly. Saved it somewhere other than Downloads? Change the path to match.</p>
 
       <h3 style="margin-top:18px">Or paste the whole script</h3>
       <p class="muted" style="font-size:13px; margin:0 0 6px">No download needed. Click <strong>Copy</strong>, paste into PowerShell, and press <strong>Enter</strong>. The block is wrapped in <span class="mono">&amp; { }</span> so PowerShell reads it all at once (you'll see <span class="mono">&gt;&gt;</span> while it loads); press Enter once at the end to start. It then scans quietly for a few minutes, then saves the result.</p>
@@ -1247,6 +1262,24 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     if((s.hiberfilGB||0)>0) notes.push("Hibernation file is "+gb(s.hiberfilGB)+"; disabling hibernation reclaims it (Advanced).");
     $("systemNote").textContent = notes.join(" ");
   }
+  function systemActions(data){
+    var host=$("systemActions"); if(!host) return; host.innerHTML="";
+    var s=data.system||{};
+    var acts=[];
+    if((s.hiberfilGB||0)>0.1) acts.push({t:"Turn off hibernation",badge:"safe",label:"Safe",gb:s.hiberfilGB,why:"Frees the hibernation file. Reversible any time with powercfg /h on; normal sleep still works.",cmd:"powercfg /h off"});
+    if((s.driverStoreGB||0)>8) acts.push({t:"Trim old driver versions",badge:"adv",label:"Advanced",gb:null,why:"Your DriverStore is large ("+gb(s.driverStoreGB)+"), usually old driver copies. List them first, then remove only clearly superseded ones. Needs an Admin PowerShell.",cmd:"pnputil /enum-drivers"});
+    if(!acts.length){ host.appendChild(el("p","muted","Your system files are a normal size. Nothing to reclaim here right now.")); return; }
+    host.appendChild(el("h3",null,"Reclaim system space"));
+    acts.forEach(function(a){
+      var row=el("div","plan-act");
+      row.appendChild(el("span","t",a.t));
+      row.appendChild(el("span","badge "+a.badge,a.label));
+      if(a.gb!=null) row.appendChild(el("span","gain","~"+gb(a.gb)));
+      var w=el("span","how"); var b=el("button","btn ghost","Copy command"); b.addEventListener("click",function(){copyText(a.cmd);}); w.appendChild(b); row.appendChild(w);
+      row.appendChild(el("span","sub",a.why));
+      host.appendChild(row);
+    });
+  }
 
   // ---------- fixes ----------
   function buildFixes(data){
@@ -1595,6 +1628,36 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
       toast("Script downloaded");
     }catch(e){ toast("Download failed"); }
   }
+  function downloadBat(){
+    try{
+      var redact = $("redactToggle").checked ? " -Redact" : "";
+      var bat = [
+        "@echo off",
+        "title DiskDetox scan",
+        'cd /d "%~dp0"',
+        'if not exist "diskdetox-scan.ps1" (',
+        "  echo Could not find diskdetox-scan.ps1 in this folder.",
+        "  echo Put diskdetox-run.bat and diskdetox-scan.ps1 in the SAME folder ^(your Downloads^), then double-click this again.",
+        "  echo.",
+        "  pause",
+        "  exit /b 1",
+        ")",
+        "echo DiskDetox is scanning. This can take a few minutes. Please leave this window open.",
+        "echo.",
+        'powershell -NoProfile -ExecutionPolicy Bypass -File "diskdetox-scan.ps1"' + redact,
+        "echo.",
+        "echo All done. Your results were saved to your Desktop and copied to your clipboard.",
+        'echo Go back to diskdetox.com and click "Paste data".',
+        "pause"
+      ].join("\r\n") + "\r\n";
+      var blob=new Blob([bat],{type:"application/octet-stream"});   // no BOM: a byte-order mark breaks .bat parsing
+      var url=URL.createObjectURL(blob);
+      var a=el("a"); a.href=url; a.download="diskdetox-run.bat";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); },1500);
+      toast("Launcher downloaded");
+    }catch(e){ toast("Download failed"); }
+  }
 
   // ---------- render all ----------
   function render(data){
@@ -1628,6 +1691,7 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     $("gamesPanel").classList.toggle("hidden", games.length===0);
     bars("gameBars", games);
     systemBars(data);
+    systemActions(data);
     buildFixes(data);
     renderStartup(data);
     renderSecurity(data);
@@ -1696,6 +1760,7 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
   });
   $("programFilter").addEventListener("input", function(){ progFilter=this.value.toLowerCase(); if(window.__data) programRows(window.__data); });
   $("downloadPs1").addEventListener("click", downloadPs1);
+  $("downloadBat").addEventListener("click", downloadBat);
   $("copyRunCmd").addEventListener("click", function(){ copyText($("runCmd").textContent); });
 
   // ---------- boot ----------
