@@ -28,13 +28,14 @@ param([switch]$Redact)
 if (-not $PSBoundParameters.ContainsKey('Redact')) { $Redact = $false }   # when pasting, set $true here to redact
 
 $ErrorActionPreference = 'SilentlyContinue'
+$ScriptVersion = '2.7.4'   # keep in sync with CURRENT_SCRIPT_VERSION + #ps-template in index.html
 
 $__sw=[System.Diagnostics.Stopwatch]::StartNew()
 function El { $e=$__sw.Elapsed; '{0}:{1:00}' -f [int][math]::Floor($e.TotalMinutes), $e.Seconds }
 function Step($i,$m){ Write-Host ("[{0}/15] ({1}) {2}" -f $i,(El),$m) -ForegroundColor Cyan }
 function Tick($m){ Write-Host ("    - {0}  ({1})" -f $m,(El)) -ForegroundColor DarkGray }
 function NotJunk($d){ -not (($d.Attributes -band [IO.FileAttributes]::ReparsePoint) -and ($d.Attributes -band [IO.FileAttributes]::System)) }
-Write-Host "DiskDetox is scanning. You'll see each step below as it runs; the slow steps can take a few minutes, so leave this window open until it says Done." -ForegroundColor Cyan
+Write-Host "DiskDetox v$ScriptVersion is scanning. You'll see each step below as it runs; the slow steps can take a few minutes, so leave this window open until it says Done." -ForegroundColor Cyan
 
 function FolderGB($p) {
   if (Test-Path $p) {
@@ -278,6 +279,7 @@ if ($Redact) {
 
 $out = [PSCustomObject]@{
   schema         = 'disk-health/v1'
+  scriptVersion  = $ScriptVersion
   generated      = (Get-Date).ToString('s')
   machine        = $machine
   redacted       = [bool]$Redact

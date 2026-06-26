@@ -228,6 +228,8 @@
   .demo-banner{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap}
   /* "your data vs demo" status strip */
   .datastamp{display:flex; gap:10px; align-items:center; background:var(--panel2); border:1px solid var(--line); border-left:4px solid var(--green); border-radius:10px; padding:10px 14px; margin:0 0 18px; font-size:13.5px; color:var(--txt)}
+  .vnotice{display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center; background:color-mix(in srgb, var(--amber) 14%, transparent); border:1px solid color-mix(in srgb, var(--amber) 40%, transparent); border-left:4px solid var(--amber); border-radius:10px; padding:10px 14px; margin:0 0 18px; font-size:13.5px; color:var(--txt)}
+  .vnotice .vn-txt{flex:1 1 280px}
   .datastamp .dot{flex:0 0 auto; width:9px; height:9px; border-radius:50%; background:var(--green)}
   .demo-banner .btn{flex:0 0 auto; border-color:var(--attention); color:var(--attention)}
   .demo-banner .btn:hover{filter:brightness(1.1)}
@@ -338,6 +340,7 @@
     <button class="btn" id="demoCta" type="button">Run the scan →</button>
   </div>
   <div id="dataStamp" class="datastamp hidden"></div>
+  <div id="verNotice" class="vnotice hidden"></div>
 
   <!-- DASHBOARD -->
   <section class="tabpanel" id="panel-dashboard" role="tabpanel" aria-labelledby="tab-dashboard" data-panel="dashboard">
@@ -744,13 +747,14 @@
 <script type="text/plain" id="ps-template"># DiskDetox read-only scan. Paste this whole block into PowerShell and press Enter. It changes nothing.
 param([switch]$Redact)
 if (-not $PSBoundParameters.ContainsKey('Redact')) { $Redact = __REDACT__ }
+$ScriptVersion = '__SCRIPTVERSION__'
 $ErrorActionPreference = 'SilentlyContinue'
 $__sw=[System.Diagnostics.Stopwatch]::StartNew()
 function El { $e=$__sw.Elapsed; '{0}:{1:00}' -f [int][math]::Floor($e.TotalMinutes), $e.Seconds }
 function Step($i,$m){ Write-Host ("[{0}/15] ({1}) {2}" -f $i,(El),$m) -ForegroundColor Cyan }
 function Tick($m){ Write-Host ("    - {0}  ({1})" -f $m,(El)) -ForegroundColor DarkGray }
 function NotJunk($d){ -not (($d.Attributes -band [IO.FileAttributes]::ReparsePoint) -and ($d.Attributes -band [IO.FileAttributes]::System)) }
-Write-Host "DiskDetox is scanning. You'll see each step below as it runs; the slow steps can take a few minutes, so leave this window open until it says Done." -ForegroundColor Cyan
+Write-Host "DiskDetox v$ScriptVersion is scanning. You'll see each step below as it runs; the slow steps can take a few minutes, so leave this window open until it says Done." -ForegroundColor Cyan
 function FolderGB($p){ if(Test-Path $p){ $s=(Get-ChildItem $p -Recurse -File -Force -Attributes !Offline | Measure-Object Length -Sum).Sum; if($null -eq $s){0}else{[math]::Round($s/1GB,2)} } else {0} }
 function ExeName($cmd){ if(-not $cmd){return $null} $c=([string]$cmd).Trim(); if($c.StartsWith('"')){ $c=$c.Substring(1); $i=$c.IndexOf('"'); if($i -ge 0){$c=$c.Substring(0,$i)} } else { $sp=$c.IndexOf(' '); if($sp -gt 0){$c=$c.Substring(0,$sp)} } try{([System.IO.Path]::GetFileName($c)).ToLowerInvariant()}catch{$null} }
 function ExePath($cmd){ if(-not $cmd){return $null} $c=([string]$cmd).Trim(); if($c.StartsWith('"')){ $i=$c.IndexOf('"',1); if($i -gt 0){return $c.Substring(1,$i-1)}; return $c.Trim('"') } $m=[regex]::Match($c,'^(.+?\.(exe|com|bat|cmd|scr))\b','IgnoreCase'); if($m.Success){return $m.Groups[1].Value}; return $c }
@@ -803,7 +807,7 @@ $hogs=@(); foreach($h in $hogDefs){ Tick $h.n; $g= if($h.f){ if(Test-Path -Liter
 $hogs=@($hogs | Sort-Object gb -Descending)
 $machine = if($Redact){$null}else{$env:COMPUTERNAME}
 if($Redact){ foreach($c in $caches){$c.path=$null}; foreach($g in $games){$g.path=$null}; foreach($s in $startup){$s.command=$null}; foreach($h in $hogs){$h.path=$null}; foreach($f in $largestFiles){ $f.path=$null; $f.name= if($f.ext){"(a .$($f.ext) file)"}else{"(a large file)"} } }
-$out=[PSCustomObject]@{ schema='disk-health/v1'; generated=(Get-Date).ToString('s'); machine=$machine; redacted=[bool]$Redact; drives=@($drives); profileFolders=@($profileFolders); appDataLocal=@($appLocal); programs=@($programs); caches=@($caches); games=@($games); largestFiles=@($largestFiles); driveFolders=@($driveFolders); startup=@($startup); processes=@($processes); security=$security; system=$system; hogs=@($hogs) }
+$out=[PSCustomObject]@{ schema='disk-health/v1'; scriptVersion=$ScriptVersion; generated=(Get-Date).ToString('s'); machine=$machine; redacted=[bool]$Redact; drives=@($drives); profileFolders=@($profileFolders); appDataLocal=@($appLocal); programs=@($programs); caches=@($caches); games=@($games); largestFiles=@($largestFiles); driveFolders=@($driveFolders); startup=@($startup); processes=@($processes); security=$security; system=$system; hogs=@($hogs) }
 Step 15 'Saving your results'
 $json=$out | ConvertTo-Json -Depth 6
 $desk=[Environment]::GetFolderPath('Desktop'); if(-not $desk -or -not (Test-Path $desk)){ $desk="$env:USERPROFILE\Desktop" }; $dest=Join-Path $desk 'disk-health.json'
@@ -907,6 +911,12 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
   function el(tag,cls,txt){ var e=document.createElement(tag); if(cls)e.className=cls; if(txt!=null)e.textContent=txt; return e; }
   function arr(x){ if(x==null) return []; return Array.isArray(x)?x:[x]; }
   function gb(n){ return (Math.round(n*100)/100).toFixed(2)+" GB"; }
+  // Script version. The page is always the latest (served live); a loaded scan carries the
+  // version of the script that made it. If that's older, nudge the user to re-download (the
+  // fix for running a stale .ps1). KEEP IN SYNC: __SCRIPTVERSION__ in #ps-template is injected
+  // from this value, and the standalone diskdetox-scan.ps1 hardcodes the same string.
+  var CURRENT_SCRIPT_VERSION="2.7.4";
+  function verCmp(a,b){ a=String(a||"0").split("."); b=String(b||"0").split("."); for(var i=0;i<3;i++){ var x=parseInt(a[i],10)||0, y=parseInt(b[i],10)||0; if(x!==y) return x<y?-1:1; } return 0; }
   function esc(s){ return String(s==null?"":s); }
   function toast(msg){ var t=$("toast"); t.textContent=msg; t.classList.add("show"); setTimeout(function(){t.classList.remove("show");},1700); }
   function copyText(txt){
@@ -924,7 +934,7 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
   function renderCmd(){
     var tmpl = $("ps-template").textContent;
     var redact = $("redactToggle").checked;
-    var body = tmpl.replace("__REDACT__", redact ? "$true" : "$false");
+    var body = tmpl.replace("__REDACT__", redact ? "$true" : "$false").replace(/__SCRIPTVERSION__/g, CURRENT_SCRIPT_VERSION);
     // Wrap in & { ... } so a paste is buffered as one block and run once, instead of
     // executing slow lines mid-paste (which overflows the console input buffer and drops text).
     $("cmdText").textContent = "& {\n" + body + "\n}";
@@ -1043,6 +1053,15 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
   }
 
   // ---------- duplicate files (render-side, from the biggest-files list) ----------
+  // Some "duplicates" are really a program keeping several versions, or an installer cache
+  // (e.g. claude.exe across version folders, a VS Code extension binary, node_modules).
+  // The app manages those, so we flag them "leave alone" and never count them as reclaimable.
+  var DUP_PROG_EXT=/\.(exe|dll|node|sys|bin|so|dylib|msi|msix|appx|pyd|lib|jar|wasm|cab|nupkg)$/i;
+  var DUP_PROG_PATH=/[\\/](node_modules|package cache|vm_bundles|extensions|app-\d|updates?|winsxs|driverstore|windowsapps|\.local|\d+\.\d+\.\d+)([\\/]|$)/i;
+  function dupIsProgram(d){
+    if(DUP_PROG_EXT.test(String(d.name||""))) return true;
+    return arr(d.paths).some(function(p){ return DUP_PROG_PATH.test(String(p||"")); });
+  }
   function findDuplicates(data){
     if(data.redacted) return [];
     var files=arr(data.largestFiles).filter(function(f){return (f.gb||0)>0 && f.name && f.path;});
@@ -1051,30 +1070,52 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     var dups=[];
     Object.keys(groups).forEach(function(k){
       var seen={}, uniq=groups[k].filter(function(f){ var p=String(f.path||"")+"|"+f.name; if(seen[p]) return false; seen[p]=1; return true; });
-      if(uniq.length>=2) dups.push({name:uniq[0].name, gb:uniq[0].gb||0, count:uniq.length, paths:uniq.map(function(f){return f.path;}), wasted:(uniq[0].gb||0)*(uniq.length-1)});
+      if(uniq.length>=2){
+        var d={name:uniq[0].name, gb:uniq[0].gb||0, count:uniq.length, paths:uniq.map(function(f){return f.path;}), wasted:(uniq[0].gb||0)*(uniq.length-1)};
+        d.program=dupIsProgram(d);
+        dups.push(d);
+      }
     });
     dups.sort(function(a,b){return b.wasted-a.wasted;});
     return dups;
+  }
+  function dupCard(d){
+    var card=el("div","fix"), head=el("div","head");
+    head.appendChild(el("span","t",d.name));
+    if(d.program){
+      head.appendChild(el("span","badge keep","Leave alone"));
+      card.appendChild(head);
+      card.appendChild(el("div","why", d.count+" copies of this "+gb(d.gb)+" file, but it looks like a program file an app keeps on purpose (different versions, or an installer cache). Usually safe to leave. Removing it can break the app, so it's not counted as space to reclaim."));
+    } else {
+      head.appendChild(el("span","revtag rev-n","Permanent"));
+      var gn=el("span","gain","~"+gb(d.wasted)+" wasted"); gn.style.marginLeft="6px"; head.appendChild(gn);
+      card.appendChild(head);
+      card.appendChild(el("div","why", d.count+" copies of this "+gb(d.gb)+" file:"));
+    }
+    var ul=document.createElement("ul"); ul.style.margin="4px 0 0"; ul.style.paddingLeft="20px"; ul.style.fontSize="12.5px"; ul.style.color="var(--muted)";
+    arr(d.paths).forEach(function(p){ ul.appendChild(el("li",null,p||"(path hidden)")); });
+    card.appendChild(ul);
+    return card;
   }
   function dupRender(data){
     var host=$("dupRows"), panel=$("dupPanel"); if(!host||!panel) return; host.innerHTML="";
     var dups=findDuplicates(data);
     panel.classList.toggle("hidden", dups.length===0);
     if(!dups.length) return;
-    var wasted=dups.reduce(function(t,d){return t+d.wasted;},0);
-    $("dupSummary").textContent="The same file name and size shows up in more than one place, so these are probably copies. Deleting the extras could free about "+gb(wasted)+". Keep one, and check each before you delete.";
-    dups.forEach(function(d){
-      var card=el("div","fix"), head=el("div","head");
-      head.appendChild(el("span","t",d.name));
-      head.appendChild(el("span","revtag rev-n","Permanent"));
-      var gn=el("span","gain","~"+gb(d.wasted)+" wasted"); gn.style.marginLeft="6px"; head.appendChild(gn);
-      card.appendChild(head);
-      card.appendChild(el("div","why", d.count+" copies of this "+gb(d.gb)+" file:"));
-      var ul=document.createElement("ul"); ul.style.margin="4px 0 0"; ul.style.paddingLeft="20px"; ul.style.fontSize="12.5px"; ul.style.color="var(--muted)";
-      d.paths.forEach(function(p){ ul.appendChild(el("li",null,p||"(path hidden)")); });
-      card.appendChild(ul);
-      host.appendChild(card);
-    });
+    var userDups=dups.filter(function(d){return !d.program;});
+    var progDups=dups.filter(function(d){return d.program;});
+    var wasted=userDups.reduce(function(t,d){return t+d.wasted;},0);
+    if(userDups.length){
+      $("dupSummary").textContent="The same file name and size shows up in more than one place, so these are probably copies. Deleting the extras could free about "+gb(wasted)+". Keep one, and check each before you delete.";
+    } else {
+      $("dupSummary").textContent="The matches below all look like program files that an app keeps on purpose, so none are flagged as safe to delete.";
+    }
+    userDups.forEach(function(d){ host.appendChild(dupCard(d)); });
+    if(progDups.length){
+      var sub=el("div","why","Probably program files (leave these alone)"); sub.style.marginTop="12px"; sub.style.fontWeight="700"; sub.style.color="var(--txt)";
+      host.appendChild(sub);
+      progDups.forEach(function(d){ host.appendChild(dupCard(d)); });
+    }
   }
 
   // ---------- Start here: guided plan ----------
@@ -1117,7 +1158,7 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
     if(files.length) t2.push(planAct({title:"Check your biggest files",risk:"review",riskLabel:"Review",gb:filesGB,rev:false,sub:"Like "+files[0].name+" ("+gb(files[0].gb)+"). Move to the cloud or delete what you recognize. These cover your profile and your other drives, biggest first.",how:{label:"See your biggest files",fn:go("breakdown")}}));
     if(winold && (winold.gb||0)>0.1) t2.push(planAct({title:"Remove the previous Windows install",risk:"review",riskLabel:"Review",gb:winold.gb,rev:false,sub:"Windows.old, kept after an upgrade. Safe to delete once your current Windows works fine.",how:{label:"See the command",fn:go("reclaim")}}));
     if(cloud) t2.push(planAct({title:"Free up space from "+cloud.name,risk:"review",riskLabel:"Review",gb:cloud.gb,sub:"Make synced files online-only: they stay safe in the cloud and download when you open them. Frees local space with no data loss.",note:"Right-click the "+cloud.name+" folder, then Free up space"}));
-    var dupWaste=findDuplicates(data).reduce(function(t,d){return t+d.wasted;},0);
+    var dupWaste=findDuplicates(data).filter(function(d){return !d.program;}).reduce(function(t,d){return t+d.wasted;},0);
     if(dupWaste>0.3) t2.push(planAct({title:"Delete duplicate files",risk:"review",riskLabel:"Review",rev:false,gb:dupWaste,sub:"The same file is copied in more than one place. Keep one, delete the extras.",how:{label:"See duplicates",fn:go("breakdown")}}));
     arr(data.drives).filter(function(d){ return d.id && c && d.id.toUpperCase().charAt(0)!==c.id.toUpperCase().charAt(0) && d.totalGB && (100-(d.pctFree||0))>=80; }).forEach(function(d){
       t2.push(planAct({title:"Check your "+d.id+" drive ("+Math.round(100-(d.pctFree||0))+"% full)",risk:"review",riskLabel:"Review",rev:null,gb:null,sub:"This drive is filling up too. See its biggest folders, and move or clear what you don't need.",how:{label:"See what's on it",fn:go("breakdown")}}));
@@ -1825,7 +1866,7 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
   // ---------- download the scan as a .ps1 file ----------
   function downloadPs1(){
     try{
-      var script=$("ps-template").textContent.replace("__REDACT__", $("redactToggle").checked?"$true":"$false");
+      var script=$("ps-template").textContent.replace("__REDACT__", $("redactToggle").checked?"$true":"$false").replace(/__SCRIPTVERSION__/g, CURRENT_SCRIPT_VERSION);
       var blob=new Blob(["﻿"+script],{type:"text/plain;charset=utf-8"});   // UTF-8 BOM so Windows PowerShell 5.1 reads it as UTF-8, not ANSI
       var url=URL.createObjectURL(blob);
       var a=el("a"); a.href=url; a.download="diskdetox-scan.ps1";
@@ -1878,6 +1919,18 @@ Write-Host "Saved $dest and copied to clipboard. Paste it into DiskDetox (diskde
       var dsTxt=el("span"); dsTxt.appendChild(el("strong",null,"Showing your data"));
       dsTxt.appendChild(el("span",null," · scanned "+dsWhen+(data.redacted?" · redacted":"")+(data.machine?(" · "+data.machine):"")));
       ds.appendChild(dsTxt);
+    }
+    var vn=$("verNotice");
+    if(vn){
+      var stale = !data.demo && verCmp(data.scriptVersion, CURRENT_SCRIPT_VERSION) < 0;
+      vn.classList.toggle("hidden", !stale);
+      if(stale){
+        vn.innerHTML="";
+        var vstr = data.scriptVersion ? ("version "+data.scriptVersion) : "an earlier version";
+        vn.appendChild(el("span","vn-txt","This scan came from "+vstr+" of the script. The latest ("+CURRENT_SCRIPT_VERSION+") finds more, including the Known space hogs check. Download it and run again for the most accurate results."));
+        var vb=el("button","btn ghost","Get the latest script"); vb.addEventListener("click", function(){ activateTab("scan"); });
+        vn.appendChild(vb);
+      }
     }
     dashboard(data);
     savings(data);
